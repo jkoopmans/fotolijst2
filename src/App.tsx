@@ -392,6 +392,7 @@ export default function App() {
         onConnectGoogle={handleLogin}
         saveNoticeVisible={saveNotice}
         photosError={photosError}
+        accessToken={token}
       />
     );
   }

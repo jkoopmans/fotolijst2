@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { GoogleAlbum, PhotoItem, FrameSettings } from '../../types';
+import { openGooglePhotoPicker } from '../../services/googlePhotos';
 import {
   Image as ImageIcon,
   FolderPlus,
@@ -10,7 +11,9 @@ import {
   CheckCircle2,
   Sparkles,
   Layers,
-  AlertTriangle,
+  Upload,
+  Info,
+  Check,
 } from 'lucide-react';
 
 interface PhotosManagerProps {
@@ -25,6 +28,7 @@ interface PhotosManagerProps {
   hasGoogleToken: boolean;
   onConnectGoogle: () => void;
   photosError?: string | null;
+  accessToken?: string | null;
 }
 
 export const PhotosManager: React.FC<PhotosManagerProps> = ({
@@ -39,11 +43,70 @@ export const PhotosManager: React.FC<PhotosManagerProps> = ({
   hasGoogleToken,
   onConnectGoogle,
   photosError,
+  accessToken,
 }) => {
   const [customUrl, setCustomUrl] = useState('');
   const [customTitle, setCustomTitle] = useState('');
   const [customAlbum, setCustomAlbum] = useState('Eigen Foto\'s');
-  const [activeTab, setActiveTab] = useState<'albums' | 'custom' | 'preview'>('albums');
+  const [activeTab, setActiveTab] = useState<'picker' | 'preview' | 'custom'>('picker');
+  const [isOpeningPicker, setIsOpeningPicker] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle Google Photo Picker
+  const handleOpenGooglePicker = () => {
+    if (!accessToken) {
+      onConnectGoogle();
+      return;
+    }
+    setIsOpeningPicker(true);
+    openGooglePhotoPicker({
+      accessToken,
+      onPhotosPicked: (pickedPhotos) => {
+        setIsOpeningPicker(false);
+        onUpdateSettings((prev) => ({
+          ...prev,
+          customPhotos: [...pickedPhotos, ...prev.customPhotos],
+        }));
+      },
+      onError: (err) => {
+        setIsOpeningPicker(false);
+        console.warn('Google Picker notice:', err);
+      },
+    });
+  };
+
+  // Local File Upload Handler
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64Url = event.target?.result as string;
+        if (base64Url) {
+          const newPhoto: PhotoItem = {
+            id: `upload-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            url: base64Url,
+            title: file.name.replace(/\.[^/.]+$/, ''),
+            albumTitle: 'Geüpload',
+            createTime: new Date(file.lastModified).toISOString(),
+            source: 'custom',
+          };
+
+          onUpdateSettings((prev) => ({
+            ...prev,
+            customPhotos: [newPhoto, ...prev.customPhotos],
+          }));
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleAddCustomPhoto = (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,74 +147,111 @@ export const PhotosManager: React.FC<PhotosManagerProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Tabs */}
-      <div className="flex border-b border-neutral-800 pb-2 gap-4">
+      <div className="flex border-b border-neutral-800 pb-2 gap-4 overflow-x-auto scrollbar-none">
         <button
           type="button"
-          onClick={() => setActiveTab('albums')}
-          className={`flex items-center gap-2 pb-2 px-1 text-sm font-semibold transition-all border-b-2 ${
-            activeTab === 'albums'
+          onClick={() => setActiveTab('picker')}
+          className={`flex items-center gap-2 pb-2 px-1 text-sm font-semibold transition-all border-b-2 whitespace-nowrap ${
+            activeTab === 'picker'
               ? 'border-blue-500 text-blue-400'
               : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
           <Layers className="w-4 h-4" />
-          <span>Google Photos Albums ({selectedAlbumIds.length} geselecteerd)</span>
+          <span>Google Photos & Foto Selectie</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('preview')}
-          className={`flex items-center gap-2 pb-2 px-1 text-sm font-semibold transition-all border-b-2 ${
+          className={`flex items-center gap-2 pb-2 px-1 text-sm font-semibold transition-all border-b-2 whitespace-nowrap ${
             activeTab === 'preview'
               ? 'border-blue-500 text-blue-400'
               : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
           <ImageIcon className="w-4 h-4" />
-          <span>Actieve Fotolijst ({activePhotos.length})</span>
+          <span>Actieve Fotolijst op TV ({activePhotos.length})</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('custom')}
-          className={`flex items-center gap-2 pb-2 px-1 text-sm font-semibold transition-all border-b-2 ${
+          className={`flex items-center gap-2 pb-2 px-1 text-sm font-semibold transition-all border-b-2 whitespace-nowrap ${
             activeTab === 'custom'
               ? 'border-blue-500 text-blue-400'
               : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
           <Plus className="w-4 h-4" />
-          <span>Eigen Foto URLs ({settings.customPhotos.length})</span>
+          <span>Foto URLs Toevoegen ({settings.customPhotos.length})</span>
         </button>
       </div>
 
-      {/* Tab: Google Photos Albums */}
-      {activeTab === 'albums' && (
+      {/* Tab: Google Photos & Picker */}
+      {activeTab === 'picker' && (
         <div className="space-y-6">
-          {photosError && (
-            <div className="bg-amber-950/40 border border-amber-500/50 rounded-2xl p-4.5 text-slate-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in shadow-xl">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+          {/* Main Google Photo Picker Action Card */}
+          <div className="bg-gradient-to-r from-blue-950/40 via-neutral-900 to-indigo-950/40 border border-blue-500/30 rounded-3xl p-6 sm:p-7 shadow-xl space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-blue-600/20 text-blue-400 border border-blue-500/40 flex items-center justify-center flex-shrink-0">
+                  <ImageIcon className="w-6 h-6" />
+                </div>
                 <div>
-                  <h4 className="font-semibold text-white text-sm">
-                    Google Photos API moet nog worden ingeschakeld
-                  </h4>
-                  <p className="text-slate-300 mt-1 leading-relaxed">
-                    Google geeft een <strong>403 foutmelding</strong> omdat de <strong>Photos Library API</strong> nog niet is ingeschakeld in je Google Cloud Project (<span className="font-mono text-amber-300">114756915443</span>). Klik op de knop hiernaast om de API direct met één klik in te schakelen.
+                  <h3 className="text-lg font-bold text-white tracking-tight">
+                    Selecteer Foto's uit Google Photos
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-xl">
+                    Kies rechtstreeks foto's of albums uit jouw Google Photos bibliotheek via het officiële Google selectiescherm.
                   </p>
                 </div>
               </div>
-              <a
-                href="https://console.cloud.google.com/apis/library/photoslibrary.googleapis.com?project=114756915443"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs whitespace-nowrap flex items-center gap-1.5 transition-all shadow-md active:scale-95 flex-shrink-0"
-              >
-                <span>Photos API Inschakelen</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleOpenGooglePicker}
+                  disabled={isOpeningPicker}
+                  className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm tracking-wide transition-all shadow-lg active:scale-95 flex items-center gap-2 cursor-pointer"
+                >
+                  <ImageIcon className="w-4 h-4" />
+                  <span>{isOpeningPicker ? 'Google Photos laden...' : 'Kies Foto\'s uit Google Photos'}</span>
+                </button>
+
+                {/* Upload from device button */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  multiple
+                  accept="image/*"
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-4 py-3 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-slate-200 font-semibold text-xs sm:text-sm tracking-wide transition-colors border border-neutral-700 flex items-center gap-2 cursor-pointer"
+                >
+                  <Upload className="w-4 h-4 text-emerald-400" />
+                  <span>Uploaden vanaf computer/telefoon</span>
+                </button>
+              </div>
             </div>
-          )}
+
+            {/* Explanation of Google Photos 2025 API policy */}
+            <div className="bg-neutral-950/60 border border-white/5 rounded-2xl p-4 text-xs text-slate-300 flex items-start gap-3">
+              <Info className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-semibold text-white">
+                  Waarom de knop "Kies Foto's uit Google Photos" wordt gebruikt:
+                </p>
+                <p className="text-slate-400 leading-relaxed">
+                  Google heeft recent de regels van de Google Photos API aangepast: apps mogen uit privacyoverwegingen niet meer automatisch op de achtergrond iemands volledige privé-fotobibliotheek doorzoeken. Met bovenstaande knop open je het officiële Google-scherm en selecteer je veilig precies de foto's en albums die je op je TV wilt zien.
+                </p>
+              </div>
+            </div>
+          </div>
 
           {/* Curated fallback toggle card */}
           <div className="bg-neutral-900/80 border border-neutral-800 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -178,114 +278,87 @@ export const PhotosManager: React.FC<PhotosManagerProps> = ({
             </label>
           </div>
 
-          {/* Albums header & refresh button */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-bold text-white tracking-tight">Jouw Google Photos Albums</h3>
-              <p className="text-xs text-slate-400">
-                Kies welke albums gerouleerd worden op je TV fotolijst
-              </p>
-            </div>
+          {/* Google Photos Albums Section (if any app-created albums exist) */}
+          {albums.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-white tracking-tight">Gekoppelde Google Albums</h3>
+                  <p className="text-xs text-slate-400">Selecteer welke albums rouleren</p>
+                </div>
 
-            <button
-              type="button"
-              onClick={onRefreshAlbums}
-              disabled={isLoadingAlbums}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-slate-200 text-xs font-medium border border-neutral-700 transition-colors"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isLoadingAlbums ? 'animate-spin text-blue-400' : ''}`} />
-              <span>{isLoadingAlbums ? 'Albums laden...' : 'Vernieuwen'}</span>
-            </button>
-          </div>
+                <button
+                  type="button"
+                  onClick={onRefreshAlbums}
+                  disabled={isLoadingAlbums}
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-slate-200 text-xs font-medium border border-neutral-700 transition-colors"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingAlbums ? 'animate-spin text-blue-400' : ''}`} />
+                  <span>Vernieuwen</span>
+                </button>
+              </div>
 
-          {!hasGoogleToken ? (
-            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-8 text-center">
-              <p className="text-slate-300 font-medium mb-3">
-                Log in met je Google Account om toegang te krijgen tot jouw Google Photos albums.
-              </p>
-              <button
-                type="button"
-                onClick={onConnectGoogle}
-                className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-colors"
-              >
-                Inloggen met Google
-              </button>
-            </div>
-          ) : albums.length === 0 ? (
-            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-8 text-center">
-              <p className="text-slate-300 font-medium">
-                {isLoadingAlbums ? 'Google Photos albums ophalen...' : 'Geen albums gevonden in Google Photos.'}
-              </p>
-              <p className="text-xs text-slate-500 mt-1">
-                Zorg dat je albums hebt aangemaakt op photos.google.com of voeg foto URLs toe via het tabblad "Eigen Foto URLs".
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {albums.map((album) => {
-                const isSelected = selectedAlbumIds.includes(album.id);
-                return (
-                  <div
-                    key={album.id}
-                    onClick={() => onToggleAlbum(album.id)}
-                    className={`group relative rounded-2xl border overflow-hidden cursor-pointer transition-all duration-200 flex flex-col ${
-                      isSelected
-                        ? 'border-blue-500 bg-blue-950/20 shadow-lg ring-2 ring-blue-500/30'
-                        : 'border-neutral-800 bg-neutral-900/60 hover:border-neutral-700 hover:bg-neutral-900'
-                    }`}
-                  >
-                    {/* Album Cover */}
-                    <div className="aspect-video bg-neutral-800 relative overflow-hidden">
-                      {album.coverPhotoBaseUrl ? (
-                        <img
-                          src={album.coverPhotoBaseUrl}
-                          alt={album.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-neutral-600">
-                          <ImageIcon className="w-8 h-8" />
-                        </div>
-                      )}
-
-                      {/* Selection checkbox indicator */}
-                      <div className="absolute top-2.5 right-2.5">
-                        <div
-                          className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all ${
-                            isSelected
-                              ? 'bg-blue-600 text-white shadow-md'
-                              : 'bg-black/60 text-transparent border border-white/30 backdrop-blur-sm'
-                          }`}
-                        >
-                          <CheckCircle2 className="w-4 h-4 fill-current" />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Album Info */}
-                    <div className="p-3.5 flex-1 flex flex-col justify-between">
-                      <h4 className="text-sm font-semibold text-white tracking-tight line-clamp-1">
-                        {album.title}
-                      </h4>
-                      <div className="flex items-center justify-between text-xs text-slate-400 mt-2">
-                        <span>{album.mediaItemsCount} items</span>
-                        {album.productUrl && (
-                          <a
-                            href={album.productUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
-                            title="Open in Google Photos"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {albums.map((album) => {
+                  const isSelected = selectedAlbumIds.includes(album.id);
+                  return (
+                    <div
+                      key={album.id}
+                      onClick={() => onToggleAlbum(album.id)}
+                      className={`group relative rounded-2xl border overflow-hidden cursor-pointer transition-all duration-200 flex flex-col ${
+                        isSelected
+                          ? 'border-blue-500 bg-blue-950/20 shadow-lg ring-2 ring-blue-500/30'
+                          : 'border-neutral-800 bg-neutral-900/60 hover:border-neutral-700 hover:bg-neutral-900'
+                      }`}
+                    >
+                      <div className="aspect-video bg-neutral-800 relative overflow-hidden">
+                        {album.coverPhotoBaseUrl ? (
+                          <img
+                            src={album.coverPhotoBaseUrl}
+                            alt={album.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-neutral-600">
+                            <ImageIcon className="w-8 h-8" />
+                          </div>
                         )}
+                        <div className="absolute top-2.5 right-2.5">
+                          <div
+                            className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all ${
+                              isSelected
+                                ? 'bg-blue-600 text-white shadow-md'
+                                : 'bg-black/60 text-transparent border border-white/30 backdrop-blur-sm'
+                            }`}
+                          >
+                            <CheckCircle2 className="w-4 h-4 fill-current" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="p-3.5 flex-1 flex flex-col justify-between">
+                        <h4 className="text-sm font-semibold text-white tracking-tight line-clamp-1">
+                          {album.title}
+                        </h4>
+                        <div className="flex items-center justify-between text-xs text-slate-400 mt-2">
+                          <span>{album.mediaItemsCount} items</span>
+                          {album.productUrl && (
+                            <a
+                              href={album.productUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -368,7 +441,7 @@ export const PhotosManager: React.FC<PhotosManagerProps> = ({
 
             <button
               type="submit"
-              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold tracking-wide transition-colors flex items-center gap-2"
+              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold tracking-wide transition-colors flex items-center gap-2 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Toevoegen aan Fotolijst</span>
@@ -378,11 +451,11 @@ export const PhotosManager: React.FC<PhotosManagerProps> = ({
           {/* List of Custom Photos */}
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-slate-300">
-              Aangepaste Foto's ({settings.customPhotos.length})
+              Geselecteerde / Aangepaste Foto's ({settings.customPhotos.length})
             </h4>
 
             {settings.customPhotos.length === 0 ? (
-              <p className="text-xs text-slate-500">Nog geen aangepaste foto URLs toegevoegd.</p>
+              <p className="text-xs text-slate-500">Nog geen foto's geselecteerd via Google Picker of handmatig toegevoegd.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {settings.customPhotos.map((photo) => (
@@ -397,12 +470,12 @@ export const PhotosManager: React.FC<PhotosManagerProps> = ({
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-white truncate">{photo.title}</p>
-                      <p className="text-[10px] text-slate-400 truncate">{photo.url}</p>
+                      <p className="text-[10px] text-slate-400 truncate">{photo.albumTitle || photo.url}</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleRemoveCustomPhoto(photo.id)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
                       title="Verwijderen"
                     >
                       <Trash2 className="w-4 h-4" />
