@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@layer utilities {
+  @keyframes kenburns {
+    0% {
+      transform: scale(1) translate(0, 0);
+    }
+    50% {
+      transform: scale(1.08) translate(-1%, -1%);
+    }
+    100% {
+      transform: scale(1.04) translate(1%, 0.5%);
+    }
+  }
+
+  @keyframes zoomIn {
+    0% {
+      transform: scale(0.96);
+      opacity: 0;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes fadeIn {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  .animate-ken-burns {
+    animation: kenburns 22s ease-in-out infinite alternate;
+  }
+
+  .animate-zoom-in {
+    animation: zoomIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.8s ease-out forwards;
+  }
+}

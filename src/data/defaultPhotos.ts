@@ -1,0 +1,60 @@
+import { PhotoItem } from '../types';
+
+export const CURATED_DEFAULT_PHOTOS: PhotoItem[] = [
+  {
+    id: 'curated-1',
+    url: 'https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?auto=format&fit=crop&w=2400&q=85',
+    title: 'Amsterdamse Grachten bij Avondlicht',
+    albumTitle: 'Nederlandse Steden',
+    createTime: '2025-10-14',
+    source: 'curated',
+  },
+  {
+    id: 'curated-2',
+    url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=2400&q=85',
+    title: 'Zonsondergang aan de Kust',
+    albumTitle: 'Vakantie & Strand',
+    createTime: '2025-08-20',
+    source: 'curated',
+  },
+  {
+    id: 'curated-3',
+    url: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=2400&q=85',
+    title: 'Ochtendnevel over de Heuvels',
+    albumTitle: 'Natuur & Rust',
+    createTime: '2025-09-03',
+    source: 'curated',
+  },
+  {
+    id: 'curated-4',
+    url: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=2400&q=85',
+    title: 'Berglandschap bij Zonsopgang',
+    albumTitle: 'Alpenavontuur',
+    createTime: '2025-07-12',
+    source: 'curated',
+  },
+  {
+    id: 'curated-5',
+    url: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=2400&q=85',
+    title: 'Sfeervolle Herfstdag in het Bos',
+    albumTitle: 'Herfstmagie',
+    createTime: '2025-10-28',
+    source: 'curated',
+  },
+  {
+    id: 'curated-6',
+    url: 'https://images.unsplash.com/photo-1549880338-65ddcdfd017b?auto=format&fit=crop&w=2400&q=85',
+    title: 'Dolomieten Weerspiegeling in Bergmeer',
+    albumTitle: 'Berglandschappen',
+    createTime: '2025-06-18',
+    source: 'curated',
+  },
+  {
+    id: 'curated-7',
+    url: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=2400&q=85',
+    title: 'Warm Scandinavisch Huiskamerontwerp',
+    albumTitle: 'Architectuur & Interieur',
+    createTime: '2025-11-01',
+    source: 'curated',
+  },
+];
