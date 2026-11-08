@@ -8,10 +8,19 @@
     <meta property="og:title" content="Ambient TV Fotolijst &amp; Kalender" />
     <meta property="og:description" content="Digitale fotolijst voor je tv met Google Photos albums, Google Calendar widget en responsive admin omgeving." />
     <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      // Ensure trailing slash for GitHub Pages repo path so Smart TV browsers resolve relative assets correctly
+      if (window.location.pathname.endsWith('/fotolijst2')) {
+        window.location.replace('/fotolijst2/' + window.location.search + window.location.hash);
+      }
+    </script>
   </head>
-  <body>
-    <div id="root"></div>
+  <body style="background-color: #000000; color: #ffffff; margin: 0; padding: 0; overflow: hidden; width: 100vw; height: 100vh;">
+    <div id="root" style="width: 100vw; height: 100vh; background-color: #000000;">
+      <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background-color: #000000; color: #71717a; font-family: sans-serif; font-size: 14px; letter-spacing: 0.05em;">
+        Fotolijst laden...
+      </div>
+    </div>
     <script src="https://apis.google.com/js/api.js" async defer></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script type="module" src="/src/main.tsx"></script>

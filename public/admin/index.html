@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fotolijst Beheer</title>
+    <script>
+      // Automatically redirect to base app with admin mode active
+      (function() {
+        var currentPath = window.location.pathname;
+        // Strip trailing /admin or /admin/
+        var basePath = currentPath.replace(/\/admin\/?$/, '');
+        var targetUrl = window.location.origin + (basePath || '') + '/?mode=admin';
+        window.location.replace(targetUrl);
+      })();
+    </script>
+  </head>
+  <body style="background: #09090b; color: #a1a1aa; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+    <div style="text-align: center;">
+      <p style="font-size: 14px; font-weight: 500;">Beheeromgeving laden...</p>
+    </div>
+  </body>
+</html>

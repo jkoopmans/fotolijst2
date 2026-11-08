@@ -11,7 +11,9 @@ export const TVConnectionCard: React.FC<TVConnectionCardProps> = ({ onLaunchTV }
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [showTips, setShowTips] = useState(false);
 
-  const tvUrl = `${window.location.origin}?mode=tv`;
+  const basePath = window.location.pathname.replace(/\/admin\/?.*$/, '').replace(/\/$/, '');
+  const tvUrl = `${window.location.origin}${basePath}/`;
+  const adminUrl = `${window.location.origin}${basePath}/admin`;
 
   useEffect(() => {
     QRCode.toDataURL(tvUrl, {

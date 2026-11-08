@@ -98,11 +98,6 @@ export const LiveTVPreview: React.FC<LiveTVPreviewProps> = ({
                 <span className="text-lg font-bold font-mono tracking-tight leading-none">
                   {formattedTime}
                 </span>
-                {settings.showWeather && weather && (
-                  <span className="text-[10px] font-semibold bg-white/10 px-1.5 py-0.5 rounded text-amber-300">
-                    {weather.temperature}°C
-                  </span>
-                )}
               </div>
               <p className="text-[9px] text-slate-300 capitalize mt-0.5">{formattedDate}</p>
             </div>
@@ -140,15 +135,7 @@ export const LiveTVPreview: React.FC<LiveTVPreviewProps> = ({
           </div>
         )}
 
-        {/* Photo Info Badge in Preview */}
-        {settings.showPhotoInfo && currentPhoto && (
-          <div className="absolute bottom-2 left-2 z-10 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg text-[8px] text-white border border-white/15 max-w-[40%] truncate">
-            <span className="font-medium truncate block">{currentPhoto.title}</span>
-            <span className="text-[7px] text-slate-400 truncate block">
-              {currentPhoto.albumTitle}
-            </span>
-          </div>
-        )}
+
       </div>
 
       <p className="text-xs text-slate-400 text-center">

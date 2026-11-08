@@ -4,7 +4,6 @@ import {
   Sliders,
   Tv,
   Clock,
-  CloudSun,
   ShieldCheck,
   Eye,
   Plus,
@@ -16,16 +15,6 @@ interface DisplaySettingsProps {
   settings: FrameSettings;
   onUpdateSettings: (updater: (prev: FrameSettings) => FrameSettings) => void;
 }
-
-const CITY_PRESETS = [
-  { name: 'Amsterdam', lat: 52.3676, lon: 4.9041 },
-  { name: 'Rotterdam', lat: 51.9244, lon: 4.4777 },
-  { name: 'Utrecht', lat: 52.0907, lon: 5.1214 },
-  { name: 'Eindhoven', lat: 51.4416, lon: 5.4697 },
-  { name: 'Groningen', lat: 53.2194, lon: 6.5665 },
-  { name: 'Brussel', lat: 50.8503, lon: 4.3517 },
-  { name: 'Antwerpen', lat: 51.2194, lon: 4.4025 },
-];
 
 export const DisplaySettings: React.FC<DisplaySettingsProps> = ({
   settings,
@@ -50,17 +39,6 @@ export const DisplaySettings: React.FC<DisplaySettingsProps> = ({
     onUpdateSettings((prev) => ({
       ...prev,
       authorizedEmails: prev.authorizedEmails.filter((e) => e !== emailToRemove),
-    }));
-  };
-
-  const handleSelectCityPreset = (cityName: string) => {
-    const found = CITY_PRESETS.find((c) => c.name === cityName);
-    if (!found) return;
-    onUpdateSettings((prev) => ({
-      ...prev,
-      weatherCity: found.name,
-      weatherLat: found.lat,
-      weatherLon: found.lon,
     }));
   };
 
@@ -144,30 +122,6 @@ export const DisplaySettings: React.FC<DisplaySettingsProps> = ({
               <option value="cover">Vullend (volledig scherm, randen bijgesneden)</option>
               <option value="contain">Passend (volledige foto met zwarte balken)</option>
             </select>
-          </div>
-
-          {/* Show Photo Info Badge */}
-          <div className="flex items-center justify-between pt-4">
-            <div>
-              <p className="text-xs font-semibold text-white">Foto Info Badge tonen</p>
-              <p className="text-[11px] text-slate-400">
-                Toont albumnaam, titel en datum linksonder op het scherm
-              </p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={settings.showPhotoInfo}
-                onChange={(e) =>
-                  onUpdateSettings((prev) => ({
-                    ...prev,
-                    showPhotoInfo: e.target.checked,
-                  }))
-                }
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-neutral-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-            </label>
           </div>
         </div>
       </div>
@@ -267,54 +221,7 @@ export const DisplaySettings: React.FC<DisplaySettingsProps> = ({
         </div>
       </div>
 
-      {/* Weather Widget Settings */}
-      <div className="bg-neutral-900/80 border border-neutral-800 rounded-2xl p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CloudSun className="w-5 h-5 text-amber-400" />
-            <h3 className="text-base font-semibold text-white">Weerbericht in Kalenderkader</h3>
-          </div>
 
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={settings.showWeather}
-              onChange={(e) =>
-                onUpdateSettings((prev) => ({
-                  ...prev,
-                  showWeather: e.target.checked,
-                }))
-              }
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-neutral-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-          </label>
-        </div>
-
-        {settings.showWeather && (
-          <div className="space-y-3">
-            <label className="block text-xs font-medium text-slate-300">
-              Kies stad of locatie:
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {CITY_PRESETS.map((city) => (
-                <button
-                  key={city.name}
-                  type="button"
-                  onClick={() => handleSelectCityPreset(city.name)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
-                    settings.weatherCity === city.name
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'bg-neutral-800 text-slate-300 hover:bg-neutral-700'
-                  }`}
-                >
-                  {city.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
 
       {/* Access Control & Authorized Google Accounts */}
       <div className="bg-neutral-900/80 border border-neutral-800 rounded-2xl p-5 space-y-4">

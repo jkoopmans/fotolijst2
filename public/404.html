@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fotolijst</title>
+    <script>
+      (function() {
+        var path = window.location.pathname;
+        if (path.indexOf('/admin') !== -1) {
+          var basePath = path.replace(/\/admin.*$/, '');
+          window.location.replace(window.location.origin + (basePath || '') + '/?mode=admin');
+        } else {
+          var segments = path.split('/').filter(Boolean);
+          var repo = segments.length > 0 ? '/' + segments[0] : '';
+          window.location.replace(window.location.origin + repo + '/');
+        }
+      })();
+    </script>
+  </head>
+  <body style="background: #09090b;"></body>
+</html>

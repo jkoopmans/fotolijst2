@@ -4,11 +4,6 @@ import {
   Calendar,
   Clock,
   MapPin,
-  Cloud,
-  Sun,
-  CloudRain,
-  CloudSnow,
-  CloudLightning,
   Sparkles,
   RefreshCw,
   Video,
@@ -99,31 +94,7 @@ export const CalendarOverlay: React.FC<CalendarOverlayProps> = ({
     });
   };
 
-  // Weather icon selector
-  const renderWeatherIcon = () => {
-    if (!weather) return <Sun className="w-6 h-6 text-amber-400" />;
-    const code = weather.conditionCode;
-    if (code === 0 || code === 1) {
-      return weather.isDay ? (
-        <Sun className="w-6 h-6 text-amber-400 animate-spin-slow" />
-      ) : (
-        <div className="w-6 h-6 rounded-full bg-amber-200/90 shadow-sm" />
-      );
-    }
-    if (code >= 2 && code <= 48) {
-      return <Cloud className="w-6 h-6 text-slate-300" />;
-    }
-    if (code >= 51 && code <= 65) {
-      return <CloudRain className="w-6 h-6 text-blue-400" />;
-    }
-    if (code >= 71 && code <= 86) {
-      return <CloudSnow className="w-6 h-6 text-cyan-200" />;
-    }
-    if (code >= 95) {
-      return <CloudLightning className="w-6 h-6 text-yellow-400" />;
-    }
-    return <Cloud className="w-6 h-6 text-slate-300" />;
-  };
+
 
   // Card width class
   const widthClasses = {
@@ -170,23 +141,6 @@ export const CalendarOverlay: React.FC<CalendarOverlayProps> = ({
             </p>
           </div>
 
-          {/* Weather Widget */}
-          {settings.showWeather && weather && (
-            <div className="flex flex-col items-end text-right bg-white/10 hover:bg-white/15 px-3 py-2 rounded-2xl border border-white/10 transition-colors">
-              <div className="flex items-center gap-2">
-                {renderWeatherIcon()}
-                <span className="text-xl md:text-2xl font-bold text-white tracking-tight">
-                  {weather.temperature}°C
-                </span>
-              </div>
-              <span className="text-xs text-slate-300 font-medium mt-0.5 truncate max-w-[120px]">
-                {weather.city || 'Weer'}
-              </span>
-              <span className="text-[10px] text-slate-400 capitalize">
-                {weather.conditionText}
-              </span>
-            </div>
-          )}
         </div>
 
         {/* Sync & Calendar Status Pill */}

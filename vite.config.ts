@@ -7,6 +7,10 @@ export default defineConfig(() => {
   return {
     base: './',
     plugins: [react(), tailwindcss()],
+    build: {
+      target: ['chrome68', 'edge79', 'firefox67', 'safari12', 'es2015'],
+      cssTarget: 'chrome61',
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

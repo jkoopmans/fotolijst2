@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { PhotoItem, CalendarEvent, WeatherData, FrameSettings } from '../../types';
 import { CalendarOverlay } from './CalendarOverlay';
-import { PhotoInfoBadge } from './PhotoInfoBadge';
 import { TVControls } from './TVControls';
 import { QRCodeModal } from './QRCodeModal';
 
@@ -136,8 +135,9 @@ export const TVFrame: React.FC<TVFrameProps> = ({
 
   // Compute TV & Admin direct URLs
   const origin = window.location.origin;
-  const tvUrl = `${origin}?mode=tv`;
-  const adminUrl = `${origin}?mode=admin`;
+  const basePath = window.location.pathname.replace(/\/admin\/?.*$/, '').replace(/\/$/, '');
+  const tvUrl = `${origin}${basePath}/`;
+  const adminUrl = `${origin}${basePath}/admin`;
 
   return (
     <div
@@ -217,15 +217,7 @@ export const TVFrame: React.FC<TVFrameProps> = ({
         />
       )}
 
-      {/* Bottom-Left Photo Information Badge */}
-      {settings.showPhotoInfo && currentPhoto && (
-        <PhotoInfoBadge
-          photo={currentPhoto}
-          currentIndex={currentIndex}
-          totalPhotos={totalPhotos}
-          visible={!controlsVisible || true}
-        />
-      )}
+
 
       {/* On-Screen TV Navigation & Controls */}
       <TVControls

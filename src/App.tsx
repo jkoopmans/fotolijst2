@@ -40,16 +40,30 @@ import {
   fetchUpcomingEvents,
   SAMPLE_CALENDAR_EVENTS,
 } from './services/googleCalendar';
-import { fetchCurrentWeather } from './services/weather';
 import { TVFrame } from './components/TVDisplay/TVFrame';
 import { AdminDashboard } from './components/Admin/AdminDashboard';
 import { AdminLoginScreen } from './components/Auth/AdminLoginScreen';
 
+const checkIsAdminRoute = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const path = window.location.pathname.toLowerCase();
+  const hash = window.location.hash.toLowerCase();
+  const params = new URLSearchParams(window.location.search);
+
+  return (
+    path.endsWith('/admin') ||
+    path.endsWith('/admin/') ||
+    path.includes('/admin') ||
+    hash === '#admin' ||
+    hash.startsWith('#/admin') ||
+    params.get('mode') === 'admin'
+  );
+};
+
 export default function App() {
-  // App mode: 'tv' (fullscreen digital frame) or 'admin'
+  // App mode: 'tv' (fullscreen digital frame) or 'admin' (dedicated /admin url)
   const [currentMode, setCurrentMode] = useState<'tv' | 'admin'>(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('mode') === 'tv' ? 'tv' : 'tv'; // default to TV view so opening the app displays the photo frame immediately
+    return checkIsAdminRoute() ? 'admin' : 'tv';
   });
 
   // Settings
@@ -82,25 +96,37 @@ export default function App() {
   // Weather
   const [weather, setWeather] = useState<WeatherData | null>(null);
 
-  // Synchronize URL query parameter when mode changes
+  // Switch between TV mode and dedicated /admin URL
   const switchMode = (mode: 'tv' | 'admin') => {
     setCurrentMode(mode);
     const url = new URL(window.location.href);
-    url.searchParams.set('mode', mode);
+
+    if (mode === 'admin') {
+      if (!url.pathname.includes('/admin')) {
+        const basePath = url.pathname.replace(/\/$/, '');
+        url.pathname = `${basePath}/admin`;
+      }
+      url.searchParams.delete('mode');
+    } else {
+      url.pathname = url.pathname.replace(/\/admin\/?$/, '') || '/';
+      url.searchParams.delete('mode');
+    }
+
     window.history.pushState({}, '', url.toString());
   };
 
-  // Handle browser back/forward buttons
+  // Handle browser back/forward buttons and hash navigation
   useEffect(() => {
-    const handlePopState = () => {
-      const params = new URLSearchParams(window.location.search);
-      const mode = params.get('mode');
-      if (mode === 'admin') setCurrentMode('admin');
-      else setCurrentMode('tv');
+    const handleUrlChange = () => {
+      setCurrentMode(checkIsAdminRoute() ? 'admin' : 'tv');
     };
 
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('hashchange', handleUrlChange);
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('hashchange', handleUrlChange);
+    };
   }, []);
 
   // Update & persist settings helper
@@ -257,22 +283,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, [handleRefreshCalendar, settings.refreshIntervalMinutes]);
 
-  // Weather fetcher
-  useEffect(() => {
-    const loadWeather = async () => {
-      if (!settings.showWeather) return;
-      const res = await fetchCurrentWeather(
-        settings.weatherLat,
-        settings.weatherLon,
-        settings.weatherCity
-      );
-      setWeather(res);
-    };
 
-    loadWeather();
-    const weatherTimer = setInterval(loadWeather, 30 * 60 * 1000); // every 30 mins
-    return () => clearInterval(weatherTimer);
-  }, [settings.showWeather, settings.weatherCity, settings.weatherLat, settings.weatherLon]);
 
   // Re-compose active photo list when selected albums, custom photos, or curated setting change
   useEffect(() => {
