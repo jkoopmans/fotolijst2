@@ -4,7 +4,6 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { User } from 'firebase/auth';
 import {
   FrameSettings,
   PhotoItem,
@@ -12,6 +11,7 @@ import {
   CalendarEvent,
   GoogleCalendarMeta,
   WeatherData,
+  AuthUserProfile,
 } from './types';
 import {
   initAuth,
@@ -57,7 +57,7 @@ export default function App() {
   const [saveNotice, setSaveNotice] = useState(false);
 
   // Authentication
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUserProfile | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);

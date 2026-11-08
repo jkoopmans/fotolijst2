@@ -373,6 +373,33 @@ export const DisplaySettings: React.FC<DisplaySettingsProps> = ({
           ))}
         </div>
       </div>
+
+      {/* Google Cloud Console OAuth Client ID Card */}
+      <div className="bg-neutral-900/80 border border-neutral-800 rounded-2xl p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
+            <h3 className="text-sm font-semibold text-white">Google Cloud OAuth Koppeling</h3>
+          </div>
+          <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-medium px-2 py-0.5 rounded-full">
+            Actief gekoppeld
+          </span>
+        </div>
+
+        <p className="text-xs text-slate-400">
+          Geconfigureerde OAuth 2.0 Client ID voor Google Identity Services en authenticatie:
+        </p>
+
+        <div className="bg-neutral-950 border border-neutral-800 p-3 rounded-xl">
+          <p className="text-xs font-mono text-blue-300 break-all select-all">
+            114756915443-t31akie1bsdp3i6tfmnjfdd8qq5g742e.apps.googleusercontent.com
+          </p>
+        </div>
+
+        <p className="text-[11px] text-slate-500">
+          Projectnummer: <span className="font-mono text-slate-400">114756915443</span> • Gekoppeld aan Google Calendar & Google Photos API.
+        </p>
+      </div>
     </div>
   );
 };

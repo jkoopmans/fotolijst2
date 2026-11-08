@@ -80,3 +80,10 @@ export interface FrameSettings {
   authorizedEmails: string[];
   refreshIntervalMinutes: number; // calendar sync interval
 }
+
+export interface AuthUserProfile {
+  uid?: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL?: string | null;
+}

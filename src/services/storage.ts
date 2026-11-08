@@ -23,7 +23,7 @@ export const DEFAULT_SETTINGS: FrameSettings = {
   selectedCalendarIds: ['primary'],
   customPhotos: [],
   curatedAlbumEnabled: true,
-  authorizedEmails: ['jasper@23g.nl'],
+  authorizedEmails: ['jasper@23g.nl', 'fietsventieltje@gmail.com'],
   refreshIntervalMinutes: 5,
 };
 
@@ -32,7 +32,10 @@ export const getStoredSettings = (): FrameSettings => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_SETTINGS;
     const parsed = JSON.parse(raw);
-    return { ...DEFAULT_SETTINGS, ...parsed };
+    const combinedEmails = Array.from(
+      new Set([...DEFAULT_SETTINGS.authorizedEmails, ...(parsed.authorizedEmails || [])])
+    );
+    return { ...DEFAULT_SETTINGS, ...parsed, authorizedEmails: combinedEmails };
   } catch (e) {
     console.error('Error loading stored settings:', e);
     return DEFAULT_SETTINGS;

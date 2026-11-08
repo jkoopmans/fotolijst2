@@ -1,10 +1,10 @@
 import React from 'react';
-import { User } from 'firebase/auth';
+import { AuthUserProfile } from '../../types';
 import { GoogleSignInButton } from './GoogleSignInButton';
 import { Tv, ShieldCheck, Calendar, Image as ImageIcon, Sparkles, ArrowRight, LogOut } from 'lucide-react';
 
 interface AdminLoginScreenProps {
-  user: User | null;
+  user: AuthUserProfile | null;
   onLogin: () => void;
   onLogout: () => void;
   isLoggingIn: boolean;

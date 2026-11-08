@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { User } from 'firebase/auth';
 import {
   FrameSettings,
   PhotoItem,
@@ -7,6 +6,7 @@ import {
   CalendarEvent,
   GoogleCalendarMeta,
   WeatherData,
+  AuthUserProfile,
 } from '../../types';
 import { PhotosManager } from './PhotosManager';
 import { CalendarSettings } from './CalendarSettings';
@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 
 interface AdminDashboardProps {
-  user: User;
+  user: AuthUserProfile;
   onLogout: () => void;
   settings: FrameSettings;
   onUpdateSettings: (updater: (prev: FrameSettings) => FrameSettings) => void;
