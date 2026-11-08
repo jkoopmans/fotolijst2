@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Sparkles,
   Layers,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface PhotosManagerProps {
@@ -23,6 +24,7 @@ interface PhotosManagerProps {
   onUpdateSettings: (updater: (prev: FrameSettings) => FrameSettings) => void;
   hasGoogleToken: boolean;
   onConnectGoogle: () => void;
+  photosError?: string | null;
 }
 
 export const PhotosManager: React.FC<PhotosManagerProps> = ({
@@ -36,6 +38,7 @@ export const PhotosManager: React.FC<PhotosManagerProps> = ({
   onUpdateSettings,
   hasGoogleToken,
   onConnectGoogle,
+  photosError,
 }) => {
   const [customUrl, setCustomUrl] = useState('');
   const [customTitle, setCustomTitle] = useState('');
@@ -125,6 +128,31 @@ export const PhotosManager: React.FC<PhotosManagerProps> = ({
       {/* Tab: Google Photos Albums */}
       {activeTab === 'albums' && (
         <div className="space-y-6">
+          {photosError && (
+            <div className="bg-amber-950/40 border border-amber-500/50 rounded-2xl p-4.5 text-slate-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in shadow-xl">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-semibold text-white text-sm">
+                    Google Photos API moet nog worden ingeschakeld
+                  </h4>
+                  <p className="text-slate-300 mt-1 leading-relaxed">
+                    Google geeft een <strong>403 foutmelding</strong> omdat de <strong>Photos Library API</strong> nog niet is ingeschakeld in je Google Cloud Project (<span className="font-mono text-amber-300">114756915443</span>). Klik op de knop hiernaast om de API direct met één klik in te schakelen.
+                  </p>
+                </div>
+              </div>
+              <a
+                href="https://console.cloud.google.com/apis/library/photoslibrary.googleapis.com?project=114756915443"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs whitespace-nowrap flex items-center gap-1.5 transition-all shadow-md active:scale-95 flex-shrink-0"
+              >
+                <span>Photos API Inschakelen</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          )}
+
           {/* Curated fallback toggle card */}
           <div className="bg-neutral-900/80 border border-neutral-800 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">

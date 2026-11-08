@@ -62,13 +62,13 @@ export default function App() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
 
-  // Photos
   const [photos, setPhotos] = useState<PhotoItem[]>(() => {
     const cached = getCachedPhotos();
     return cached.length > 0 ? cached : getSampleOrCuratedPhotos();
   });
   const [albums, setAlbums] = useState<GoogleAlbum[]>([]);
   const [isLoadingAlbums, setIsLoadingAlbums] = useState(false);
+  const [photosError, setPhotosError] = useState<string | null>(null);
 
   // Calendars & Events
   const [calendars, setCalendars] = useState<GoogleCalendarMeta[]>([]);
@@ -157,7 +157,6 @@ export default function App() {
       }
     } catch (err: any) {
       console.error('Login error:', err);
-      alert(`Inloggen mislukt: ${err.message || 'Onbekende fout'}`);
     } finally {
       setIsLoggingIn(false);
     }
@@ -177,8 +176,10 @@ export default function App() {
     try {
       const fetchedAlbums = await fetchGoogleAlbums(accessToken);
       setAlbums(fetchedAlbums);
-    } catch (e) {
+      setPhotosError(null);
+    } catch (e: any) {
       console.warn('Could not fetch albums on login:', e);
+      setPhotosError(e.message || 'Fout bij ophalen Google Photos albums');
     } finally {
       setIsLoadingAlbums(false);
     }
@@ -206,11 +207,12 @@ export default function App() {
     try {
       const fetchedAlbums = await fetchGoogleAlbums(currentToken);
       setAlbums(fetchedAlbums);
+      setPhotosError(null);
     } catch (e: any) {
       if (e.message === 'UNAUTHORIZED') {
         handleLogin();
       } else {
-        alert('Fout bij ophalen Google Photos albums: ' + e.message);
+        setPhotosError(e.message);
       }
     } finally {
       setIsLoadingAlbums(false);
@@ -389,6 +391,7 @@ export default function App() {
         hasGoogleToken={!!token}
         onConnectGoogle={handleLogin}
         saveNoticeVisible={saveNotice}
+        photosError={photosError}
       />
     );
   }

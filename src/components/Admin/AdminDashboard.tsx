@@ -47,6 +47,7 @@ interface AdminDashboardProps {
   hasGoogleToken: boolean;
   onConnectGoogle: () => void;
   saveNoticeVisible?: boolean;
+  photosError?: string | null;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -71,6 +72,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   hasGoogleToken,
   onConnectGoogle,
   saveNoticeVisible = false,
+  photosError,
 }) => {
   const [activeTab, setActiveTab] = useState<'photos' | 'calendar' | 'display' | 'tv'>('photos');
 
@@ -230,6 +232,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             onUpdateSettings={onUpdateSettings}
             hasGoogleToken={hasGoogleToken}
             onConnectGoogle={onConnectGoogle}
+            photosError={photosError}
           />
         )}
 

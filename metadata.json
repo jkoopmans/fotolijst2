@@ -2,5 +2,7 @@
   "name": "Ambient TV Fotolijst & Kalender",
   "description": "Digitale fotolijst voor je tv met Google Photos albums, Google Calendar widget en responsive admin omgeving.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

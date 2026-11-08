@@ -13,6 +13,11 @@ export async function fetchGoogleAlbums(accessToken: string): Promise<GoogleAlbu
       if (res.status === 401) {
         throw new Error('UNAUTHORIZED');
       }
+      if (res.status === 403) {
+        throw new Error(
+          'API_NOT_ENABLED: De Photos Library API is nog niet ingeschakeld in je Google Cloud Project (114756915443).'
+        );
+      }
       const errText = await res.text();
       console.warn('Google Photos albums error response:', errText);
       throw new Error(`Google Photos API status ${res.status}: ${res.statusText}`);
