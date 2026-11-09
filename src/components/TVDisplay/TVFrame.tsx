@@ -30,6 +30,28 @@ export const TVFrame: React.FC<TVFrameProps> = ({
   const [controlsVisible, setControlsVisible] = useState<boolean>(false);
   const [showQRModal, setShowQRModal] = useState<boolean>(false);
   const [progressPercent, setProgressPercent] = useState<number>(0);
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
+
+  useEffect(() => {
+    const clockTimer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(clockTimer);
+  }, []);
+
+  // Format time without seconds: HH:MM
+  const formattedTime = currentTime.toLocaleTimeString('nl-NL', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: settings.clockFormat === '12h',
+  });
+
+  // Format Dutch date: e.g. "maandag 9 november"
+  const formattedDate = currentTime.toLocaleDateString('nl-NL', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -203,6 +225,20 @@ export const TVFrame: React.FC<TVFrameProps> = ({
           >
             Naar Admin Omgeving
           </button>
+        </div>
+      )}
+
+      {/* Bottom-Left Ambient Clock & Date (secondes weg, links onderin, geen streep) */}
+      {settings.showClock && (
+        <div className="absolute bottom-8 left-8 md:bottom-12 md:left-12 z-20 pointer-events-none select-none">
+          <div className="flex flex-col">
+            <div className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-light tracking-tight text-white font-mono leading-none drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)]">
+              {formattedTime}
+            </div>
+            <div className="text-base sm:text-lg md:text-xl lg:text-2xl font-medium text-slate-200 capitalize mt-2.5 tracking-wide drop-shadow-[0_2px_12px_rgba(0,0,0,0.95)]">
+              {formattedDate}
+            </div>
+          </div>
         </div>
       )}
 

@@ -81,56 +81,52 @@ export const LiveTVPreview: React.FC<LiveTVPreviewProps> = ({
           </div>
         )}
 
-        {/* Calendar Overlay in Preview */}
+        {/* Bottom-Left Ambient Clock & Date in Preview (Secondes weg, links onderin) */}
+        {settings.showClock && (
+          <div className="absolute bottom-2.5 left-3 z-10 select-none text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+            <div className="text-xl font-light font-mono leading-none tracking-tight">{formattedTime}</div>
+            <div className="text-[9px] font-medium text-slate-200 capitalize mt-0.5">{formattedDate}</div>
+          </div>
+        )}
+
+        {/* Clean Agenda Overlay in Preview */}
         {settings.showCalendarOverlay && (
           <div
             className={`absolute top-2 bottom-2 ${
               settings.overlayPosition === 'left' ? 'left-2' : 'right-2'
-            } w-[42%] max-w-[210px] rounded-xl p-2.5 flex flex-col justify-between border border-white/20 text-white z-10`}
+            } w-[42%] max-w-[210px] rounded-xl p-2.5 flex flex-col border border-white/20 text-white z-10`}
             style={{
               backgroundColor: `rgba(15, 23, 42, ${(settings.overlayOpacity ?? 80) / 100})`,
               backdropFilter: 'blur(12px)',
             }}
           >
-            {/* Clock & Date Header */}
-            <div>
-              <div className="flex items-baseline justify-between">
-                <span className="text-lg font-bold font-mono tracking-tight leading-none">
-                  {formattedTime}
-                </span>
-              </div>
-              <p className="text-[9px] text-slate-300 capitalize mt-0.5">{formattedDate}</p>
+            {/* Clean Header */}
+            <div className="text-[10px] font-bold text-white mb-1.5 flex items-center gap-1">
+              <span>Agenda</span>
             </div>
 
-            {/* Event list mock */}
-            <div className="my-1.5 space-y-1 overflow-hidden">
-              <div className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider text-blue-400">
-                <Sparkles className="w-2.5 h-2.5" />
-                <span>Vandaag ({todayEvents.length})</span>
-              </div>
-              {todayEvents.slice(0, 2).map((ev) => (
+            {/* Event list */}
+            <div className="space-y-1 overflow-hidden flex-1">
+              {todayEvents.slice(0, 3).map((ev, i) => (
                 <div
                   key={ev.id}
-                  className="bg-white/10 p-1.5 rounded-lg text-[9px] truncate border border-white/5"
+                  className="bg-white/10 p-1.5 rounded-lg text-[9px] border border-white/5 flex items-start gap-1.5"
                 >
-                  <p className="font-semibold truncate text-white">{ev.summary}</p>
-                  <p className="text-[8px] text-slate-400">
-                    {ev.isAllDay ? 'Hele dag' : '10:00 - 11:30'}
-                  </p>
+                  <span
+                    className="w-1.5 h-1.5 rounded-full mt-1 flex-shrink-0"
+                    style={{ backgroundColor: ev.color || (i === 0 ? '#10b981' : '#3b82f6') }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold truncate text-white leading-tight">{ev.summary}</p>
+                    <p className="text-[8px] text-slate-300">
+                      {ev.isAllDay ? 'Hele dag' : '10:00 - 11:30'}
+                    </p>
+                  </div>
                 </div>
               ))}
               {todayEvents.length === 0 && (
-                <div className="text-[8px] text-slate-400 italic">Geen afspraken vandaag</div>
+                <div className="text-[8px] text-slate-400 italic">Geen afspraken gepland</div>
               )}
-            </div>
-
-            {/* Google Calendar sync pill */}
-            <div className="text-[7px] text-slate-400 flex items-center justify-between border-t border-white/10 pt-1">
-              <span className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                Google Calendar
-              </span>
-              <span>Live</span>
             </div>
           </div>
         )}
