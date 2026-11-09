@@ -22,7 +22,7 @@ export const DEFAULT_SETTINGS: FrameSettings = {
   selectedAlbumIds: [],
   selectedCalendarIds: ['primary'],
   customPhotos: [],
-  curatedAlbumEnabled: true,
+  curatedAlbumEnabled: false,
   authorizedEmails: ['jasper@23g.nl', 'fietsventieltje@gmail.com'],
   refreshIntervalMinutes: 5,
   googleApiKey: 'AIzaSyBx2yj4QSfS2U75ylF9Khx1XseoMRb3aeQ',
@@ -90,3 +90,114 @@ export const setCachedEvents = (events: any[]): void => {
     console.warn('Could not cache events to localStorage:', e);
   }
 };
+
+export function generateSyncHash(photos: PhotoItem[], events: any[], settings: FrameSettings): string {
+  const data = {
+    photos: photos.map((p) => ({
+      id: p.id,
+      url: p.url,
+      title: p.title,
+      albumTitle: p.albumTitle,
+      createTime: p.createTime,
+      source: p.source,
+    })),
+    events: events.map((e) => ({
+      id: e.id,
+      summary: e.summary,
+      start: e.start,
+      end: e.end,
+      color: e.color,
+      location: e.location,
+      calendarName: e.calendarName,
+      isAllDay: e.isAllDay,
+    })),
+    settings: {
+      slideInterval: settings.slideInterval,
+      transitionStyle: settings.transitionStyle,
+      fitMode: settings.fitMode,
+      showCalendarOverlay: settings.showCalendarOverlay,
+      overlayPosition: settings.overlayPosition,
+      overlayWidth: settings.overlayWidth,
+      overlayOpacity: settings.overlayOpacity,
+      showClock: settings.showClock,
+      clockFormat: settings.clockFormat,
+      curatedAlbumEnabled: false,
+      customPhotos: photos,
+    },
+    version: 1,
+    exportedAt: new Date().toISOString(),
+  };
+
+  try {
+    return encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(data)))));
+  } catch {
+    return '';
+  }
+}
+
+export function parseSyncHash(
+  hashStr: string
+): { photos?: PhotoItem[]; events?: any[]; settings?: Partial<FrameSettings> } | null {
+  try {
+    let clean = hashStr.trim();
+    if (clean.startsWith('#')) clean = clean.substring(1);
+    if (clean.startsWith('?')) clean = clean.substring(1);
+    if (clean.startsWith('config=')) clean = clean.substring(7);
+    if (clean.startsWith('sync=')) clean = clean.substring(5);
+    if (!clean) return null;
+
+    const decodedUri = decodeURIComponent(clean);
+    const jsonStr = decodeURIComponent(escape(atob(decodedUri)));
+    const parsed = JSON.parse(jsonStr);
+    return parsed;
+  } catch {
+    try {
+      // Fallback direct decode without URI escape
+      const clean = hashStr.replace(/^[#?]/, '').replace(/^config=/, '').replace(/^sync=/, '');
+      const jsonStr = atob(clean);
+      return JSON.parse(jsonStr);
+    } catch {
+      return null;
+    }
+  }
+}
+
+export function createTVContentJSON(photos: PhotoItem[], events: any[], settings: FrameSettings): string {
+  const payload = {
+    photos: photos.map((p) => ({
+      id: p.id,
+      url: p.url,
+      title: p.title,
+      albumTitle: p.albumTitle,
+      createTime: p.createTime,
+      source: p.source || 'google_photos',
+    })),
+    events: events.map((e) => ({
+      id: e.id,
+      summary: e.summary,
+      start: e.start,
+      end: e.end,
+      color: e.color,
+      location: e.location,
+      calendarName: e.calendarName,
+      isAllDay: e.isAllDay,
+    })),
+    settings: {
+      slideInterval: settings.slideInterval,
+      transitionStyle: settings.transitionStyle,
+      fitMode: settings.fitMode,
+      showCalendarOverlay: settings.showCalendarOverlay,
+      overlayPosition: settings.overlayPosition,
+      overlayWidth: settings.overlayWidth,
+      overlayOpacity: settings.overlayOpacity,
+      showClock: settings.showClock,
+      clockFormat: settings.clockFormat,
+      curatedAlbumEnabled: false,
+    },
+    version: 1,
+    generatedAt: new Date().toISOString(),
+  };
+  return JSON.stringify(payload, null, 2);
+}
+
+

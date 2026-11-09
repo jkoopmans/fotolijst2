@@ -1,0 +1,18 @@
+{
+  "photos": [],
+  "events": [],
+  "settings": {
+    "slideInterval": 12,
+    "transitionStyle": "kenburns",
+    "fitMode": "blur-backdrop",
+    "showCalendarOverlay": true,
+    "overlayPosition": "right",
+    "overlayWidth": "normal",
+    "overlayOpacity": 80,
+    "showClock": true,
+    "clockFormat": "24h",
+    "curatedAlbumEnabled": false
+  },
+  "version": 1,
+  "description": "Exporteer vanuit het admin paneel (/admin) om dit bestand te vullen met jouw eigen foto's en agenda."
+}

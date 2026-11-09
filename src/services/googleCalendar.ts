@@ -1,68 +1,7 @@
 import { CalendarEvent, GoogleCalendarMeta } from '../types';
 
-export const SAMPLE_CALENDAR_EVENTS: CalendarEvent[] = [
-  {
-    id: 'sample-1',
-    summary: 'Familie Brunch & Koffie',
-    description: 'Gezellig bijkletsen thuis',
-    start: {
-      dateTime: new Date(Date.now() + 1000 * 60 * 60 * 1.5).toISOString(),
-    },
-    end: {
-      dateTime: new Date(Date.now() + 1000 * 60 * 60 * 3).toISOString(),
-    },
-    location: 'Thuis',
-    calendarId: 'primary',
-    calendarName: 'Privé',
-    color: '#3b82f6',
-    isAllDay: false,
-  },
-  {
-    id: 'sample-2',
-    summary: 'Wekelijkse Wandeling',
-    description: 'In het bos met de hond',
-    start: {
-      dateTime: new Date(Date.now() + 1000 * 60 * 60 * 5).toISOString(),
-    },
-    end: {
-      dateTime: new Date(Date.now() + 1000 * 60 * 60 * 6.5).toISOString(),
-    },
-    location: 'Nationaal Park',
-    calendarId: 'primary',
-    calendarName: 'Privé',
-    color: '#10b981',
-    isAllDay: false,
-  },
-  {
-    id: 'sample-3',
-    summary: 'Verjaardag Sophie 🎂',
-    start: {
-      date: new Date().toISOString().split('T')[0],
-    },
-    end: {
-      date: new Date().toISOString().split('T')[0],
-    },
-    calendarId: 'birthdays',
-    calendarName: 'Verjaardagen',
-    color: '#f59e0b',
-    isAllDay: true,
-  },
-  {
-    id: 'sample-4',
-    summary: 'Project Review & Brainstorm',
-    start: {
-      dateTime: new Date(Date.now() + 1000 * 60 * 60 * 26).toISOString(),
-    },
-    end: {
-      dateTime: new Date(Date.now() + 1000 * 60 * 60 * 27.5).toISOString(),
-    },
-    location: 'Google Meet',
-    calendarId: 'work',
-    calendarName: 'Werk',
-    color: '#8b5cf6',
-    isAllDay: false,
-  },
-];
+// No dummy data: only real user calendar events are displayed
+export const SAMPLE_CALENDAR_EVENTS: CalendarEvent[] = [];
 
 export async function fetchUserCalendars(accessToken: string): Promise<GoogleCalendarMeta[]> {
   try {

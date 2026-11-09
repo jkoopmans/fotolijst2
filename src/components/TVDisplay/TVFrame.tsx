@@ -208,23 +208,12 @@ export const TVFrame: React.FC<TVFrameProps> = ({
           </div>
         </div>
       ) : (
-        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-white bg-neutral-950">
-          <div className="w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 mb-4 border border-blue-500/30">
-            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-neutral-950 to-black flex items-center justify-center">
+          <div className="text-center p-6 max-w-md text-slate-400 text-xs">
+            <p className="opacity-60 tracking-wide">
+              Koppel je Google Drive foto's in het beheerpaneel op <span className="text-slate-300 font-mono">/admin</span>
+            </p>
           </div>
-          <h2 className="text-2xl font-bold mb-2">Geen foto's geselecteerd</h2>
-          <p className="text-slate-400 max-w-md text-sm mb-6">
-            Log in op de admin-omgeving om je Google Photos albums te kiezen of bewaar samengestelde collecties.
-          </p>
-          <button
-            type="button"
-            onClick={onOpenAdmin}
-            className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm transition-colors shadow-lg"
-          >
-            Naar Admin Omgeving
-          </button>
         </div>
       )}
 

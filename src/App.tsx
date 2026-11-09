@@ -28,6 +28,7 @@ import {
   getCachedEvents,
   setCachedEvents,
   DEFAULT_SETTINGS,
+  parseSyncHash,
 } from './services/storage';
 import {
   fetchGoogleAlbums,
@@ -77,19 +78,17 @@ export default function App() {
   const [authChecked, setAuthChecked] = useState(false);
 
   const [photos, setPhotos] = useState<PhotoItem[]>(() => {
-    const cached = getCachedPhotos();
-    return cached.length > 0 ? cached : getSampleOrCuratedPhotos();
+    return getCachedPhotos();
   });
   const [albums, setAlbums] = useState<GoogleAlbum[]>([]);
   const [isLoadingAlbums, setIsLoadingAlbums] = useState(false);
   const [photosError, setPhotosError] = useState<string | null>(null);
 
-  // Calendars & Events
+  // Calendars & Events (No dummy data)
   const [calendars, setCalendars] = useState<GoogleCalendarMeta[]>([]);
   const [isLoadingCalendars, setIsLoadingCalendars] = useState(false);
   const [events, setEvents] = useState<CalendarEvent[]>(() => {
-    const cached = getCachedEvents();
-    return cached.length > 0 ? cached : SAMPLE_CALENDAR_EVENTS;
+    return getCachedEvents();
   });
   const [isSyncingCalendar, setIsSyncingCalendar] = useState(false);
 
@@ -150,6 +149,84 @@ export default function App() {
     window.addEventListener('tv-frame-settings-updated', handleStorageUpdate);
     return () => window.removeEventListener('tv-frame-settings-updated', handleStorageUpdate);
   }, []);
+
+  // Sync loader: unpacks URL hash (#config=...) or loads static ./tv-content.json
+  useEffect(() => {
+    const checkSyncHash = () => {
+      const hash = window.location.hash || window.location.search;
+      if (hash && (hash.includes('config=') || hash.includes('sync='))) {
+        const synced = parseSyncHash(hash);
+        if (synced) {
+          if (synced.photos && Array.isArray(synced.photos) && synced.photos.length > 0) {
+            setPhotos(synced.photos);
+            setCachedPhotos(synced.photos);
+          }
+          if (synced.events && Array.isArray(synced.events) && synced.events.length > 0) {
+            setEvents(synced.events);
+            setCachedEvents(synced.events);
+          }
+          if (synced.settings) {
+            updateSettings((prev) => ({
+              ...prev,
+              ...synced.settings,
+              customPhotos: synced.photos && synced.photos.length > 0 ? synced.photos : prev.customPhotos,
+            }));
+          }
+          // Clean hash from address bar for a pristine TV screen
+          try {
+            const cleanUrl = window.location.pathname;
+            window.history.replaceState(null, '', cleanUrl);
+          } catch {}
+          return true;
+        }
+      }
+      return false;
+    };
+
+    const hashSynced = checkSyncHash();
+
+    // If not synced from hash, attempt to load public/tv-content.json (for GitHub Pages static deploy)
+    if (!hashSynced) {
+      fetch('./tv-content.json?t=' + Date.now())
+        .then((res) => {
+          if (res.ok) return res.json();
+          return null;
+        })
+        .then((data) => {
+          if (data) {
+            if (Array.isArray(data.photos) && data.photos.length > 0) {
+              setPhotos((curr) => {
+                if (curr.length === 0) {
+                  setCachedPhotos(data.photos);
+                  return data.photos;
+                }
+                return curr;
+              });
+            }
+            if (Array.isArray(data.events) && data.events.length > 0) {
+              setEvents((curr) => {
+                if (curr.length === 0) {
+                  setCachedEvents(data.events);
+                  return data.events;
+                }
+                return curr;
+              });
+            }
+            if (data.settings) {
+              updateSettings((prev) => ({
+                ...prev,
+                ...data.settings,
+                customPhotos:
+                  Array.isArray(data.photos) && data.photos.length > 0
+                    ? data.photos
+                    : prev.customPhotos,
+              }));
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, [updateSettings]);
 
   // Auth Initialization
   useEffect(() => {
@@ -316,9 +393,15 @@ export default function App() {
       }
 
       if (isMounted) {
-        const finalList = list.length > 0 ? list : getSampleOrCuratedPhotos();
-        setPhotos(finalList);
-        setCachedPhotos(finalList);
+        // Zero dummy content: only use the user's actual photos
+        const finalList = list;
+        // Only update if we have photos or if customPhotos was explicitly emptied
+        if (finalList.length > 0 || (settings.customPhotos && settings.customPhotos.length === 0)) {
+          setPhotos(finalList);
+          if (finalList.length > 0) {
+            setCachedPhotos(finalList);
+          }
+        }
       }
     };
 

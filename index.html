@@ -103,24 +103,45 @@
       </div>
       <script>
         (function() {
-          var photos = [
-            'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=2560&q=85',
-            'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=2560&q=85',
-            'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=2560&q=85',
-            'https://images.unsplash.com/photo-1518495973542-4542c06a5843?auto=format&fit=crop&w=2560&q=85',
-            'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=2560&q=85'
-          ];
+          var photos = [];
           
           try {
-            var stored = localStorage.getItem('ambient_tv_settings');
-            if (stored) {
-              var parsed = JSON.parse(stored);
-              if (parsed && parsed.customPhotos && parsed.customPhotos.length > 0) {
-                var customUrls = parsed.customPhotos.map(function(p) { return p.url; });
-                if (customUrls.length > 0) photos = customUrls;
+            // Check hash for immediate sync on first TV visit
+            var hash = window.location.hash || window.location.search;
+            if (hash && (hash.indexOf('config=') !== -1 || hash.indexOf('sync=') !== -1)) {
+              var clean = hash.replace(/^[#?]/, '').replace(/^config=/, '').replace(/^sync=/, '');
+              var jsonStr = decodeURIComponent(escape(atob(decodeURIComponent(clean))));
+              var parsedSync = JSON.parse(jsonStr);
+              if (parsedSync && parsedSync.photos && parsedSync.photos.length > 0) {
+                photos = parsedSync.photos.map(function(p) { return p.url; });
+                localStorage.setItem('ambient_tv_frame_cached_photos_v1', JSON.stringify(parsedSync.photos));
               }
             }
           } catch(e) {}
+
+          if (photos.length === 0) {
+            try {
+              var cached = localStorage.getItem('ambient_tv_frame_cached_photos_v1');
+              if (cached) {
+                var parsedList = JSON.parse(cached);
+                if (Array.isArray(parsedList) && parsedList.length > 0) {
+                  photos = parsedList.map(function(p) { return p.url; });
+                }
+              }
+            } catch(e) {}
+          }
+
+          if (photos.length === 0) {
+            try {
+              var stored = localStorage.getItem('ambient_tv_frame_settings_v1');
+              if (stored) {
+                var parsed = JSON.parse(stored);
+                if (parsed && parsed.customPhotos && parsed.customPhotos.length > 0) {
+                  photos = parsed.customPhotos.map(function(p) { return p.url; });
+                }
+              }
+            } catch(e) {}
+          }
 
           var currentIndex = 0;
           var imgEl = document.getElementById('tv-fallback-img');
@@ -142,8 +163,16 @@
           }
 
           function showPhoto(idx) {
+            if (photos.length === 0) {
+              if (imgEl) imgEl.style.display = 'none';
+              if (bgEl) bgEl.style.background = 'radial-gradient(circle at center, #0f172a 0%, #000000 100%)';
+              return;
+            }
             var url = photos[idx % photos.length];
-            if (imgEl) imgEl.src = url;
+            if (imgEl) {
+              imgEl.style.display = 'block';
+              imgEl.src = url;
+            }
             if (bgEl) bgEl.style.backgroundImage = 'url(' + url + ')';
           }
 
@@ -151,10 +180,12 @@
           showPhoto(0);
           setInterval(updateClock, 1000);
 
-          setInterval(function() {
-            currentIndex = (currentIndex + 1) % photos.length;
-            showPhoto(currentIndex);
-          }, 10000);
+          if (photos.length > 1) {
+            setInterval(function() {
+              currentIndex = (currentIndex + 1) % photos.length;
+              showPhoto(currentIndex);
+            }, 10000);
+          }
         })();
       </script>
     </div>

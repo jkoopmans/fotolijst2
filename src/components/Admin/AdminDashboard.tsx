@@ -266,7 +266,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* Tab 4: TV Connection & Live Preview */}
         {activeTab === 'tv' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-            <TVConnectionCard onLaunchTV={onLaunchTV} />
+            <TVConnectionCard
+              onLaunchTV={onLaunchTV}
+              photos={photos}
+              events={events}
+              settings={settings}
+            />
             <LiveTVPreview
               photos={photos}
               events={events}
