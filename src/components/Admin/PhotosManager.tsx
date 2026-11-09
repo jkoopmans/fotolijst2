@@ -50,6 +50,7 @@ export const PhotosManager: React.FC<PhotosManagerProps> = ({
   const [customAlbum, setCustomAlbum] = useState('Eigen Foto\'s');
   const [activeTab, setActiveTab] = useState<'picker' | 'preview' | 'custom'>('picker');
   const [isOpeningPicker, setIsOpeningPicker] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Handle Google Photo Picker
@@ -192,7 +193,51 @@ export const PhotosManager: React.FC<PhotosManagerProps> = ({
       {/* Tab: Google Photos & Picker */}
       {activeTab === 'picker' && (
         <div className="space-y-6">
-          {/* Main Google Photo Picker Action Card */}
+          {/* Primary Action: Direct Upload (Fastest, zero API friction) */}
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setIsDragging(true);
+            }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setIsDragging(false);
+              if (e.dataTransfer.files) {
+                handleFileUpload({ target: { files: e.dataTransfer.files } } as any);
+              }
+            }}
+            onClick={() => fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-3xl p-6 sm:p-8 text-center cursor-pointer transition-all ${
+              isDragging
+                ? 'border-emerald-500 bg-emerald-950/20 scale-[1.01]'
+                : 'border-neutral-700 bg-neutral-900/40 hover:border-emerald-500/60 hover:bg-neutral-900/70 shadow-lg'
+            }`}
+          >
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center mb-3">
+              <Upload className="w-7 h-7" />
+            </div>
+            <h3 className="text-base sm:text-lg font-bold text-white mb-1">
+              Foto's direct toevoegen (Sleep hierheen of klik om te kiezen)
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-300 max-w-lg mx-auto">
+              Selecteer je mooiste foto's vanaf je computer of smartphone. Ze worden direct in hoge resolutie bewaard en vertoond op je tv-scherm.
+            </p>
+            <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-colors shadow">
+              <Upload className="w-4 h-4" />
+              <span>Kies Foto Bestanden</span>
+            </div>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              multiple
+              accept="image/*"
+              className="hidden"
+            />
+          </div>
+
+          {/* Secondary Action: Google Photos & Drive Integration */}
           <div className="bg-gradient-to-r from-blue-950/40 via-neutral-900 to-indigo-950/40 border border-blue-500/30 rounded-3xl p-6 sm:p-7 shadow-xl space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-start gap-4">
@@ -201,10 +246,10 @@ export const PhotosManager: React.FC<PhotosManagerProps> = ({
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-white tracking-tight">
-                    Selecteer Foto's uit Google Photos
+                    Selecteer Foto's via Google
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-xl">
-                    Kies rechtstreeks foto's of albums uit jouw Google Photos bibliotheek via het officiële Google selectiescherm.
+                    Open de officiële Google Photos Picker sessie of selecteer afbeeldingen uit je Google Drive.
                   </p>
                 </div>
               </div>
@@ -217,25 +262,7 @@ export const PhotosManager: React.FC<PhotosManagerProps> = ({
                   className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm tracking-wide transition-all shadow-lg active:scale-95 flex items-center gap-2 cursor-pointer"
                 >
                   <ImageIcon className="w-4 h-4" />
-                  <span>{isOpeningPicker ? 'Google Photos laden...' : 'Kies Foto\'s uit Google Photos'}</span>
-                </button>
-
-                {/* Upload from device button */}
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  multiple
-                  accept="image/*"
-                  className="hidden"
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-4 py-3 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-slate-200 font-semibold text-xs sm:text-sm tracking-wide transition-colors border border-neutral-700 flex items-center gap-2 cursor-pointer"
-                >
-                  <Upload className="w-4 h-4 text-emerald-400" />
-                  <span>Uploaden vanaf computer/telefoon</span>
+                  <span>{isOpeningPicker ? 'Google venster openen...' : 'Open Google Photos / Drive Selectie'}</span>
                 </button>
               </div>
             </div>
@@ -245,11 +272,10 @@ export const PhotosManager: React.FC<PhotosManagerProps> = ({
               <Info className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
               <div className="space-y-1.5">
                 <p className="font-semibold text-white">
-                  Tip voor het selecteren van foto's:
+                  Waarom Google's pop-up venster soms "403" geeft:
                 </p>
                 <p className="text-slate-400 leading-relaxed">
-                  • <strong>Direct uploaden (Aanbevolen):</strong> Klik op <em>"Uploaden vanaf computer/telefoon"</em> om direct je favoriete foto's te kiezen. Deze werken altijd zonder API-beperkingen.<br />
-                  • <strong>Google Photos Picker:</strong> Geeft het Google-popupscherm een 403-fout? Schakel dan in je Google Cloud Project (114756915443) specifiek de <strong>Google Picker API</strong> in (dus <em>Picker API</em>, niet Photos Library API).
+                  Google heeft recent de oude Google Drive Photos view uitgefaseerd. Om Google Photos via het pop-upvenster te openen, moet in je Google Cloud Project specifiek de <strong>Google Photos Picker API</strong> ingeschakeld zijn. Je kunt ook altijd direct foto's uploaden via de groene knop hierboven; dat werkt direct zonder API-beperkingen!
                 </p>
               </div>
             </div>
