@@ -26,223 +26,34 @@ export async function loadGapiPickerScript(): Promise<void> {
   });
 }
 
-/**
- * Attempts to fetch Google Photos albums via REST API.
- * Catches 403 gracefully and returns an empty list without throwing popup alerts.
- */
-export async function fetchGoogleAlbums(accessToken: string): Promise<GoogleAlbum[]> {
-  try {
-    const res = await fetch('https://photoslibrary.googleapis.com/v1/albums?pageSize=50', {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-
-    if (!res.ok) {
-      if (res.status === 401) {
-        throw new Error('UNAUTHORIZED');
-      }
-      return [];
-    }
-
-    const data = await res.json();
-    if (!data.albums || !Array.isArray(data.albums)) {
-      return [];
-    }
-
-    return data.albums.map((album: any) => ({
-      id: album.id,
-      title: album.title || 'Naamloos album',
-      productUrl: album.productUrl,
-      coverPhotoBaseUrl: album.coverPhotoBaseUrl ? `${album.coverPhotoBaseUrl}=w600-h400-c` : undefined,
-      mediaItemsCount: album.mediaItemsCount || '0',
-    }));
-  } catch (err: any) {
-    if (err.message === 'UNAUTHORIZED') throw err;
-    return [];
-  }
-}
-
-export async function fetchAlbumPhotos(
-  accessToken: string,
-  albumId: string,
-  albumTitle?: string
-): Promise<PhotoItem[]> {
-  try {
-    const res = await fetch('https://photoslibrary.googleapis.com/v1/mediaItems:search', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        albumId: albumId,
-        pageSize: 50,
-      }),
-    });
-
-    if (!res.ok) {
-      return [];
-    }
-
-    const data = await res.json();
-    if (!data.mediaItems || !Array.isArray(data.mediaItems)) {
-      return [];
-    }
-
-    return data.mediaItems
-      .filter((item: any) => item.mimeType?.startsWith('image/'))
-      .map((item: any) => ({
-        id: item.id,
-        url: `${item.baseUrl}=w2560-h1440`,
-        title: item.description || albumTitle || 'Google Foto',
-        albumTitle: albumTitle || 'Google Photos',
-        createTime: item.mediaMetadata?.creationTime,
-        width: item.mediaMetadata?.width ? parseInt(item.mediaMetadata.width, 10) : undefined,
-        height: item.mediaMetadata?.height ? parseInt(item.mediaMetadata.height, 10) : undefined,
-        source: 'google_photos' as const,
-      }));
-  } catch {
-    return [];
-  }
-}
-
-export async function fetchAllSelectedPhotos(
-  accessToken: string | null,
-  selectedAlbumIds: string[],
-  albums: GoogleAlbum[] = []
-): Promise<PhotoItem[]> {
-  if (!accessToken || !selectedAlbumIds.length) {
-    return [];
-  }
-
-  const allPhotos: PhotoItem[] = [];
-  const albumMap = new Map(albums.map((a) => [a.id, a.title]));
-
-  for (const albumId of selectedAlbumIds) {
-    const albumTitle = albumMap.get(albumId);
-    const photos = await fetchAlbumPhotos(accessToken, albumId, albumTitle);
-    allPhotos.push(...photos);
-  }
-
-  return allPhotos;
-}
-
 export function getSampleOrCuratedPhotos(): PhotoItem[] {
   return CURATED_DEFAULT_PHOTOS;
 }
 
-/**
- * Modern Google Photos Picker API (official 2024/2025 standard)
- * 1. Creates a session: POST https://photospicker.googleapis.com/v1/sessions
- * 2. Opens the pickerUri in a secure popup window
- * 3. Polls/retrieves selected media items: GET https://photospicker.googleapis.com/v1/mediaItems?sessionId=...
- */
-export async function startGooglePhotosPickerSession({
-  accessToken,
-  onPhotosPicked,
-  onError,
-}: {
-  accessToken: string;
-  onPhotosPicked: (photos: PhotoItem[]) => void;
-  onError?: (err: any) => void;
-}): Promise<boolean> {
-  try {
-    const res = await fetch('https://photospicker.googleapis.com/v1/sessions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      console.warn('Google Photos Picker API session response:', res.status, errText);
-      return false;
-    }
-
-    const sessionData = await res.json();
-    const sessionId = sessionData.id;
-    const pickerUri = sessionData.pickerUri;
-
-    if (!pickerUri) {
-      return false;
-    }
-
-    // Open Google's native picker window
-    const popup = window.open(
-      pickerUri,
-      'google_photos_picker',
-      'width=840,height=700,menubar=no,toolbar=no,location=no,status=no,resizable=yes'
-    );
-
-    let pollInterval: NodeJS.Timeout | null = null;
-    let attempts = 0;
-    const maxAttempts = 90; // up to 3 minutes
-
-    pollInterval = setInterval(async () => {
-      attempts++;
-      if (attempts > maxAttempts || (popup && popup.closed)) {
-        if (pollInterval) clearInterval(pollInterval);
-      }
-
-      try {
-        const checkRes = await fetch(
-          `https://photospicker.googleapis.com/v1/mediaItems?sessionId=${sessionId}&pageSize=100`,
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          }
-        );
-
-        if (checkRes.ok) {
-          const mediaData = await checkRes.json();
-          if (mediaData.mediaItems && mediaData.mediaItems.length > 0) {
-            if (pollInterval) clearInterval(pollInterval);
-            if (popup && !popup.closed) popup.close();
-
-            const newPhotos: PhotoItem[] = mediaData.mediaItems.map(
-              (item: any, index: number) => ({
-                id: item.id || `google-photos-${Date.now()}-${index}`,
-                url: `${item.baseUrl}=w2560-h1440`,
-                title: item.filename || 'Google Foto',
-                albumTitle: 'Google Photos Selectie',
-                createTime: new Date().toISOString(),
-                width: item.mediaFile?.width ? parseInt(item.mediaFile.width, 10) : undefined,
-                height: item.mediaFile?.height ? parseInt(item.mediaFile.height, 10) : undefined,
-                source: 'google_photos' as const,
-              })
-            );
-
-            onPhotosPicked(newPhotos);
-
-            // Clean up session
-            fetch(`https://photospicker.googleapis.com/v1/sessions/${sessionId}`, {
-              method: 'DELETE',
-              headers: { Authorization: `Bearer ${accessToken}` },
-            }).catch(() => {});
-          }
-        }
-      } catch {
-        // continue polling
-      }
-    }, 2000);
-
-    return true;
-  } catch (err) {
-    console.warn('Photos picker session start error:', err);
-    if (onError) onError(err);
-    return false;
-  }
+// Lightweight stubs for existing imports
+export async function fetchGoogleAlbums(_accessToken?: string): Promise<GoogleAlbum[]> {
+  return [];
+}
+export async function fetchAlbumPhotos(
+  _accessToken?: string,
+  _albumId?: string,
+  _albumTitle?: string
+): Promise<PhotoItem[]> {
+  return [];
+}
+export async function fetchAllSelectedPhotos(
+  _accessToken?: string | null,
+  _selectedAlbumIds?: string[],
+  _albums?: GoogleAlbum[]
+): Promise<PhotoItem[]> {
+  return [];
 }
 
 /**
- * Google Picker dialog (supporting Google Drive images & shared photos)
- * Uses DocsView(DOCS_IMAGES) which avoids the deprecated ViewId.PHOTOS 403 error.
+ * Google Drive Images Picker
+ * Dedicated Google Drive picker that queries user's Drive photos and images securely.
  */
-export async function openGooglePhotoPicker({
+export async function openGoogleDriveImagePicker({
   accessToken,
   developerKey,
   appId,
@@ -257,17 +68,6 @@ export async function openGooglePhotoPicker({
 }): Promise<void> {
   if (typeof window === 'undefined') return;
 
-  // 1. First attempt the modern Google Photos Picker API
-  const sessionSuccess = await startGooglePhotosPickerSession({
-    accessToken,
-    onPhotosPicked,
-  });
-
-  if (sessionSuccess) {
-    return;
-  }
-
-  // 2. Fallback to Google Drive DocsView(DOCS_IMAGES) via PickerBuilder
   try {
     await loadGapiPickerScript();
   } catch (err) {
@@ -287,15 +87,17 @@ export async function openGooglePhotoPicker({
     try {
       const google = (window as any).google;
       if (!google?.picker) {
-        throw new Error('Google Picker service is nog niet gereed.');
+        throw new Error('Google Picker service is nog niet gereed in de browser.');
       }
 
-      const pickerOrigin = window.location.origin;
+      // Ensure proper origin matching
+      const pickerOrigin = window.location.protocol + '//' + window.location.host;
 
-      // Use DOCS_IMAGES which is valid and supported by Google Picker API
-      const docsView = new google.picker.DocsView(google.picker.ViewId.DOCS_IMAGES)
+      // Google Drive Images View (supported natively by Google Drive API & Picker API)
+      const docsImagesView = new google.picker.DocsView(google.picker.ViewId.DOCS_IMAGES)
         .setIncludeFolders(true)
-        .setSelectFolderEnabled(false);
+        .setSelectFolderEnabled(false)
+        .setMimeTypes('image/png,image/jpeg,image/jpg,image/webp,image/gif');
 
       const effectiveKey = developerKey || GOOGLE_API_KEY;
       const effectiveAppId = appId || GOOGLE_PROJECT_NUMBER;
@@ -305,27 +107,32 @@ export async function openGooglePhotoPicker({
         .setOAuthToken(accessToken)
         .setDeveloperKey(effectiveKey)
         .setAppId(effectiveAppId)
-        .addView(docsView)
+        .addView(docsImagesView)
         .setOrigin(pickerOrigin)
-        .setTitle('Selecteer afbeeldingen voor je TV Fotolijst')
+        .setTitle('Selecteer afbeeldingen uit je Google Drive voor je TV')
         .setCallback((data: any) => {
           if (data.action === google.picker.Action.PICKED) {
             const pickedDocs = data.docs || [];
             const newPhotos: PhotoItem[] = pickedDocs.map((doc: any, index: number) => {
-              let imgUrl = doc.url;
+              // High-resolution Google Drive image URLs
+              let imgUrl = doc.id ? `https://lh3.googleusercontent.com/d/${doc.id}=w2560-h1440` : '';
+
               if (doc.thumbnails && doc.thumbnails.length > 0) {
                 const thumb = doc.thumbnails[doc.thumbnails.length - 1];
-                imgUrl = thumb.url;
+                if (thumb && thumb.url) {
+                  imgUrl = thumb.url.split('=')[0] + '=w2560-h1440';
+                }
               }
-              if (imgUrl && imgUrl.includes('googleusercontent.com')) {
-                imgUrl = imgUrl.split('=')[0] + '=w2560-h1440';
+
+              if (!imgUrl && doc.id) {
+                imgUrl = `https://drive.google.com/thumbnail?id=${doc.id}&sz=w2560`;
               }
 
               return {
-                id: doc.id || `google-picker-${Date.now()}-${index}`,
-                url: imgUrl || doc.iconUrl,
-                title: doc.name || 'Google Foto',
-                albumTitle: 'Google Drive Selectie',
+                id: doc.id || `google-drive-${Date.now()}-${index}`,
+                url: imgUrl || doc.url,
+                title: doc.name || 'Google Drive Foto',
+                albumTitle: 'Google Drive Afbeeldingen',
                 createTime: doc.lastEditedUtc
                   ? new Date(doc.lastEditedUtc).toISOString()
                   : new Date().toISOString(),
@@ -345,3 +152,6 @@ export async function openGooglePhotoPicker({
     }
   });
 }
+
+// Alias for backwards compatibility
+export const openGooglePhotoPicker = openGoogleDriveImagePicker;

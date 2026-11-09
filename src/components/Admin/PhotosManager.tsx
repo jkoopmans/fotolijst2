@@ -160,7 +160,7 @@ export const PhotosManager: React.FC<PhotosManagerProps> = ({
           }`}
         >
           <Layers className="w-4 h-4" />
-          <span>Google Photos & Foto Selectie</span>
+          <span>Google Drive & Foto Selectie</span>
         </button>
 
         <button
@@ -190,7 +190,7 @@ export const PhotosManager: React.FC<PhotosManagerProps> = ({
         </button>
       </div>
 
-      {/* Tab: Google Photos & Picker */}
+      {/* Tab: Google Drive & Photo Selection */}
       {activeTab === 'picker' && (
         <div className="space-y-6">
           {/* Primary Action: Direct Upload (Fastest, zero API friction) */}
@@ -237,7 +237,7 @@ export const PhotosManager: React.FC<PhotosManagerProps> = ({
             />
           </div>
 
-          {/* Secondary Action: Google Photos & Drive Integration */}
+          {/* Google Drive Integration Card */}
           <div className="bg-gradient-to-r from-blue-950/40 via-neutral-900 to-indigo-950/40 border border-blue-500/30 rounded-3xl p-6 sm:p-7 shadow-xl space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-start gap-4">
@@ -246,10 +246,10 @@ export const PhotosManager: React.FC<PhotosManagerProps> = ({
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-white tracking-tight">
-                    Selecteer Foto's via Google
+                    Selecteer Afbeeldingen uit Google Drive
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-xl">
-                    Open de officiële Google Photos Picker sessie of selecteer afbeeldingen uit je Google Drive.
+                    Kies afbeeldingen en foto's rechtstreeks uit je Google Drive mappen via het officiële selectievenster.
                   </p>
                 </div>
               </div>
@@ -262,20 +262,20 @@ export const PhotosManager: React.FC<PhotosManagerProps> = ({
                   className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm tracking-wide transition-all shadow-lg active:scale-95 flex items-center gap-2 cursor-pointer"
                 >
                   <ImageIcon className="w-4 h-4" />
-                  <span>{isOpeningPicker ? 'Google venster openen...' : 'Open Google Photos / Drive Selectie'}</span>
+                  <span>{isOpeningPicker ? 'Google Drive openen...' : 'Kies Afbeeldingen uit Google Drive'}</span>
                 </button>
               </div>
             </div>
 
-            {/* Explanation of Google Photos 2025 API policy & Picker troubleshooting */}
+            {/* Explanation of Google Drive API requirement */}
             <div className="bg-neutral-950/60 border border-white/5 rounded-2xl p-4 text-xs text-slate-300 flex items-start gap-3">
               <Info className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
               <div className="space-y-1.5">
                 <p className="font-semibold text-white">
-                  Waarom Google's pop-up venster soms "403" geeft:
+                  Instelling voor Google Drive in Google Cloud:
                 </p>
                 <p className="text-slate-400 leading-relaxed">
-                  Google heeft recent de oude Google Drive Photos view uitgefaseerd. Om Google Photos via het pop-upvenster te openen, moet in je Google Cloud Project specifiek de <strong>Google Photos Picker API</strong> ingeschakeld zijn. Je kunt ook altijd direct foto's uploaden via de groene knop hierboven; dat werkt direct zonder API-beperkingen!
+                  Zorg ervoor dat in je Google Cloud Project (<strong>114756915443</strong>) onder <em>APIs &amp; Services &gt; Library</em> zowel de <strong>Google Drive API</strong> als de <strong>Google Picker API</strong> zijn ingeschakeld.
                 </p>
               </div>
             </div>
