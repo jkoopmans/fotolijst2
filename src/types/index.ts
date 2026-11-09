@@ -79,6 +79,7 @@ export interface FrameSettings {
   curatedAlbumEnabled: boolean;
   authorizedEmails: string[];
   refreshIntervalMinutes: number; // calendar sync interval
+  googleApiKey?: string;
 }
 
 export interface AuthUserProfile {

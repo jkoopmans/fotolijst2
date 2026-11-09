@@ -2,9 +2,31 @@ import { GoogleAlbum, PhotoItem } from '../types';
 import { CURATED_DEFAULT_PHOTOS } from '../data/defaultPhotos';
 
 /**
+ * Dynamically load Google API script for the picker
+ */
+export async function loadGapiPickerScript(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  if ((window as any).gapi) return;
+
+  return new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector('script[src="https://apis.google.com/js/api.js"]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve());
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://apis.google.com/js/api.js';
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Kon Google API script niet laden.'));
+    document.head.appendChild(script);
+  });
+}
+
+/**
  * Attempts to fetch Google Photos albums via REST API.
- * Note: Google deprecated reading broad non-app-created libraries for 3rd-party apps in 2025.
- * If 403 occurs, we guide the user to the Google Photo Picker.
+ * Google restricts /v1/albums for 3rd-party consumer apps unless verified.
+ * We catch 403 gracefully and return an empty list without throwing popup alerts.
  */
 export async function fetchGoogleAlbums(accessToken: string): Promise<GoogleAlbum[]> {
   try {
@@ -19,11 +41,10 @@ export async function fetchGoogleAlbums(accessToken: string): Promise<GoogleAlbu
         throw new Error('UNAUTHORIZED');
       }
       if (res.status === 403) {
-        throw new Error('GOOGLE_PHOTOS_POLICY_RESTRICTED');
+        console.info('Google Photos Library API is policy-restricted by Google. Use upload or custom URLs.');
+        return [];
       }
-      const errText = await res.text();
-      console.warn('Google Photos albums error response:', errText);
-      throw new Error(`Google Photos API status ${res.status}: ${res.statusText}`);
+      return [];
     }
 
     const data = await res.json();
@@ -39,8 +60,9 @@ export async function fetchGoogleAlbums(accessToken: string): Promise<GoogleAlbu
       mediaItemsCount: album.mediaItemsCount || '0',
     }));
   } catch (err: any) {
-    console.error('Error fetching Google Photos albums:', err);
-    throw err;
+    if (err.message === 'UNAUTHORIZED') throw err;
+    console.warn('Google Photos albums notice:', err);
+    return [];
   }
 }
 
@@ -63,7 +85,6 @@ export async function fetchAlbumPhotos(
     });
 
     if (!res.ok) {
-      console.warn(`Could not load photos for album ${albumId}:`, res.statusText);
       return [];
     }
 
@@ -85,7 +106,6 @@ export async function fetchAlbumPhotos(
         source: 'google_photos' as const,
       }));
   } catch (err) {
-    console.warn(`Error fetching items for album ${albumId}:`, err);
     return [];
   }
 }
@@ -115,28 +135,39 @@ export function getSampleOrCuratedPhotos(): PhotoItem[] {
   return CURATED_DEFAULT_PHOTOS;
 }
 
+export const GOOGLE_API_KEY = 'AIzaSyBx2yj4QSfS2U75ylF9Khx1XseoMRb3aeQ';
+export const GOOGLE_PROJECT_NUMBER = '114756915443';
+
 /**
  * Modern Google Photo Picker integration:
- * Opens Google's native secure selection dialog where users can select any
- * photos or albums from their personal Google account without API 403 restrictions.
+ * Dynamically loads gapi and opens Google Picker with user-friendly error handling.
  */
-export function openGooglePhotoPicker({
+export async function openGooglePhotoPicker({
   accessToken,
+  developerKey,
+  appId,
   onPhotosPicked,
   onError,
 }: {
   accessToken: string;
+  developerKey?: string;
+  appId?: string;
   onPhotosPicked: (photos: PhotoItem[]) => void;
   onError?: (err: any) => void;
-}): void {
+}): Promise<void> {
   if (typeof window === 'undefined') return;
+
+  try {
+    await loadGapiPickerScript();
+  } catch (err) {
+    if (onError) onError(err);
+    return;
+  }
 
   const gapi = (window as any).gapi;
   if (!gapi) {
     if (onError) {
-      onError(
-        new Error('Google API component is aan het initialiseren. Probeer het over een ogenblik nogmaals.')
-      );
+      onError(new Error('Google API script kon niet worden geïnitialiseerd.'));
     }
     return;
   }
@@ -156,9 +187,14 @@ export function openGooglePhotoPicker({
       const viewPhotos = new google.picker.View(google.picker.ViewId.PHOTOS);
       const viewAlbums = new google.picker.View(google.picker.ViewId.PHOTO_ALBUMS);
 
+      const effectiveKey = developerKey || GOOGLE_API_KEY;
+      const effectiveAppId = appId || GOOGLE_PROJECT_NUMBER;
+
       const builder = new google.picker.PickerBuilder()
         .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
         .setOAuthToken(accessToken)
+        .setDeveloperKey(effectiveKey)
+        .setAppId(effectiveAppId)
         .addView(viewPhotos)
         .addView(viewAlbums)
         .setOrigin(pickerOrigin)

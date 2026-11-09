@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="nl">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,22 +8,162 @@
     <meta property="og:title" content="Ambient TV Fotolijst &amp; Kalender" />
     <meta property="og:description" content="Digitale fotolijst voor je tv met Google Photos albums, Google Calendar widget en responsive admin omgeving." />
     <meta property="og:type" content="website" />
+    <style>
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background-color: #000000;
+        color: #ffffff;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      }
+      #root {
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        position: relative;
+        background-color: #000000;
+      }
+      /* Fallback TV presentation styles (runs before/without React) */
+      .tv-fallback-container {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background-color: #000000;
+      }
+      .tv-fallback-bg {
+        position: absolute;
+        inset: -5%;
+        width: 110%;
+        height: 110%;
+        background-size: cover;
+        background-position: center;
+        filter: blur(28px) brightness(0.4);
+        opacity: 0.85;
+        transition: opacity 1.5s ease-in-out;
+      }
+      .tv-fallback-main {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        z-index: 2;
+        transition: opacity 1.2s ease-in-out;
+      }
+      .tv-fallback-card {
+        position: absolute;
+        top: 2.5rem;
+        right: 2.5rem;
+        z-index: 10;
+        background: rgba(15, 23, 42, 0.72);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 1.5rem;
+        padding: 1.5rem 2rem;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+        min-width: 280px;
+        color: #ffffff;
+      }
+      .tv-fallback-time {
+        font-size: 3.5rem;
+        font-weight: 700;
+        letter-spacing: -0.04em;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+        text-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+      .tv-fallback-date {
+        margin-top: 0.5rem;
+        font-size: 1.1rem;
+        font-weight: 500;
+        color: #cbd5e1;
+        text-transform: capitalize;
+      }
+    </style>
     <script>
-      // Ensure trailing slash for GitHub Pages repo path so Smart TV browsers resolve relative assets correctly
+      // Ensure trailing slash for GitHub Pages repo path so relative assets resolve correctly
       if (window.location.pathname.endsWith('/fotolijst2')) {
         window.location.replace('/fotolijst2/' + window.location.search + window.location.hash);
       }
     </script>
   </head>
-  <body style="background-color: #000000; color: #ffffff; margin: 0; padding: 0; overflow: hidden; width: 100vw; height: 100vh;">
-    <div id="root" style="width: 100vw; height: 100vh; background-color: #000000;">
-      <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background-color: #000000; color: #71717a; font-family: sans-serif; font-size: 14px; letter-spacing: 0.05em;">
-        Fotolijst laden...
+  <body>
+    <div id="root">
+      <!-- Instant Fallback for Smart TVs: starts rendering within milliseconds -->
+      <div id="tv-fallback" class="tv-fallback-container">
+        <div id="tv-fallback-bg" class="tv-fallback-bg"></div>
+        <img id="tv-fallback-img" class="tv-fallback-main" alt="TV Fotolijst" />
+        
+        <div class="tv-fallback-card">
+          <div id="tv-fallback-time" class="tv-fallback-time">--:--</div>
+          <div id="tv-fallback-date" class="tv-fallback-date">Laden...</div>
+        </div>
       </div>
+      <script>
+        (function() {
+          var photos = [
+            'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=2560&q=85',
+            'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=2560&q=85',
+            'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=2560&q=85',
+            'https://images.unsplash.com/photo-1518495973542-4542c06a5843?auto=format&fit=crop&w=2560&q=85',
+            'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=2560&q=85'
+          ];
+          
+          try {
+            var stored = localStorage.getItem('ambient_tv_settings');
+            if (stored) {
+              var parsed = JSON.parse(stored);
+              if (parsed && parsed.customPhotos && parsed.customPhotos.length > 0) {
+                var customUrls = parsed.customPhotos.map(function(p) { return p.url; });
+                if (customUrls.length > 0) photos = customUrls;
+              }
+            }
+          } catch(e) {}
+
+          var currentIndex = 0;
+          var imgEl = document.getElementById('tv-fallback-img');
+          var bgEl = document.getElementById('tv-fallback-bg');
+          var timeEl = document.getElementById('tv-fallback-time');
+          var dateEl = document.getElementById('tv-fallback-date');
+
+          function updateClock() {
+            var now = new Date();
+            var hours = ('0' + now.getHours()).slice(-2);
+            var mins = ('0' + now.getMinutes()).slice(-2);
+            if (timeEl) timeEl.textContent = hours + ':' + mins;
+
+            var days = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
+            var months = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+            if (dateEl) {
+              dateEl.textContent = days[now.getDay()] + ' ' + now.getDate() + ' ' + months[now.getMonth()];
+            }
+          }
+
+          function showPhoto(idx) {
+            var url = photos[idx % photos.length];
+            if (imgEl) imgEl.src = url;
+            if (bgEl) bgEl.style.backgroundImage = 'url(' + url + ')';
+          }
+
+          updateClock();
+          showPhoto(0);
+          setInterval(updateClock, 1000);
+
+          setInterval(function() {
+            currentIndex = (currentIndex + 1) % photos.length;
+            showPhoto(currentIndex);
+          }, 10000);
+        })();
+      </script>
     </div>
-    <script src="https://apis.google.com/js/api.js" async defer></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

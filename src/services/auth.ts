@@ -69,6 +69,25 @@ export const initAuth = (
   });
 };
 
+export async function loadGsiScript(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  if ((window as any).google?.accounts?.oauth2) return;
+
+  return new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve());
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Kon Google Identity script niet laden.'));
+    document.head.appendChild(script);
+  });
+}
+
 // Sign in with Google (supports Google Identity Services with custom client ID & Firebase Auth)
 export const googleSignIn = async (): Promise<{ user: any; accessToken: string }> => {
   if (isSigningIn) {
@@ -77,8 +96,7 @@ export const googleSignIn = async (): Promise<{ user: any; accessToken: string }
   isSigningIn = true;
 
   try {
-    // 1. If Google Identity Services (GIS) is available and client ID is provided, use GIS Token Client
-    // This allows custom Google Cloud OAuth client IDs to work seamlessly on GitHub Pages and custom domains
+    await loadGsiScript().catch((err) => console.warn('GIS script load notice:', err));
     const gisAvailable = typeof window !== 'undefined' && (window as any).google?.accounts?.oauth2;
 
     if (gisAvailable && OAUTH_CLIENT_ID) {

@@ -25,6 +25,7 @@ export const DEFAULT_SETTINGS: FrameSettings = {
   curatedAlbumEnabled: true,
   authorizedEmails: ['jasper@23g.nl', 'fietsventieltje@gmail.com'],
   refreshIntervalMinutes: 5,
+  googleApiKey: 'AIzaSyBx2yj4QSfS2U75ylF9Khx1XseoMRb3aeQ',
 };
 
 export const getStoredSettings = (): FrameSettings => {

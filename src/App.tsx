@@ -204,8 +204,8 @@ export default function App() {
       setAlbums(fetchedAlbums);
       setPhotosError(null);
     } catch (e: any) {
-      console.warn('Could not fetch albums on login:', e);
-      setPhotosError(e.message || 'Fout bij ophalen Google Photos albums');
+      console.info('Could not fetch albums:', e);
+      setPhotosError(null);
     } finally {
       setIsLoadingAlbums(false);
     }
@@ -238,7 +238,8 @@ export default function App() {
       if (e.message === 'UNAUTHORIZED') {
         handleLogin();
       } else {
-        setPhotosError(e.message);
+        console.info('Album fetch notice:', e);
+        setPhotosError(null);
       }
     } finally {
       setIsLoadingAlbums(false);

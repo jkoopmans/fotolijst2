@@ -61,6 +61,7 @@ export const PhotosManager: React.FC<PhotosManagerProps> = ({
     setIsOpeningPicker(true);
     openGooglePhotoPicker({
       accessToken,
+      developerKey: settings.googleApiKey,
       onPhotosPicked: (pickedPhotos) => {
         setIsOpeningPicker(false);
         onUpdateSettings((prev) => ({
@@ -239,15 +240,16 @@ export const PhotosManager: React.FC<PhotosManagerProps> = ({
               </div>
             </div>
 
-            {/* Explanation of Google Photos 2025 API policy */}
+            {/* Explanation of Google Photos 2025 API policy & Picker troubleshooting */}
             <div className="bg-neutral-950/60 border border-white/5 rounded-2xl p-4 text-xs text-slate-300 flex items-start gap-3">
               <Info className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <p className="font-semibold text-white">
-                  Waarom de knop "Kies Foto's uit Google Photos" wordt gebruikt:
+                  Tip voor het selecteren van foto's:
                 </p>
                 <p className="text-slate-400 leading-relaxed">
-                  Google heeft recent de regels van de Google Photos API aangepast: apps mogen uit privacyoverwegingen niet meer automatisch op de achtergrond iemands volledige privé-fotobibliotheek doorzoeken. Met bovenstaande knop open je het officiële Google-scherm en selecteer je veilig precies de foto's en albums die je op je TV wilt zien.
+                  • <strong>Direct uploaden (Aanbevolen):</strong> Klik op <em>"Uploaden vanaf computer/telefoon"</em> om direct je favoriete foto's te kiezen. Deze werken altijd zonder API-beperkingen.<br />
+                  • <strong>Google Photos Picker:</strong> Geeft het Google-popupscherm een 403-fout? Schakel dan in je Google Cloud Project (114756915443) specifiek de <strong>Google Picker API</strong> in (dus <em>Picker API</em>, niet Photos Library API).
                 </p>
               </div>
             </div>
