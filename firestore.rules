@@ -38,7 +38,8 @@ service cloud.firestore {
 
     function isAuthorizedAdminEmail() {
       return isEmailVerified()
-        && request.auth.token.email in ['jasper@23g.nl', 'fietsventieltje@gmail.com'];
+        && request.auth.token.email is string
+        && request.auth.token.email.lower() in ['jasper@23g.nl', 'fietsventieltje@gmail.com'];
     }
 
     function isBackupOwner(data) {
@@ -166,15 +167,21 @@ service cloud.firestore {
     }
 
     // 4. Published TV Display State (unauthenticated ambient kiosk read, admin-only write, zero PII)
-    match /tv_display/active {
-      allow get: if existing().isPublicDisplay == true;
+    match /tv_display/{displayId} {
+      allow get: if isValidId(displayId)
+        && displayId == 'active'
+        && ((resource != null && existing().isPublicDisplay == true) || isAuthorizedAdminEmail());
       allow list: if false;
 
       allow create: if isAuthorizedAdminEmail()
+        && isValidId(displayId)
+        && displayId == 'active'
         && isValidTVDisplayState(incoming())
         && incoming().updatedAt == request.time;
 
       allow update: if isAuthorizedAdminEmail()
+        && isValidId(displayId)
+        && displayId == 'active'
         && isValidTVDisplayState(incoming())
         && incoming().updatedAt == request.time
         && incoming().diff(existing()).affectedKeys().hasOnly([
@@ -185,18 +192,28 @@ service cloud.firestore {
           'updatedAt'
         ]);
 
-      allow delete: if isAuthorizedAdminEmail();
+      allow delete: if isAuthorizedAdminEmail() && isValidId(displayId) && displayId == 'active';
 
       match /photos/{photoId} {
-        allow get: if isValidId(photoId) && existing().isPublicDisplay == true;
-        allow list: if existing().isPublicDisplay == true;
+        allow get: if isValidId(displayId)
+          && displayId == 'active'
+          && isValidId(photoId)
+          && ((resource != null && existing().isPublicDisplay == true) || isAuthorizedAdminEmail());
+        allow list: if isValidId(displayId)
+          && displayId == 'active'
+          && resource != null
+          && existing().isPublicDisplay == true;
 
         allow create: if isAuthorizedAdminEmail()
+          && isValidId(displayId)
+          && displayId == 'active'
           && isValidId(photoId)
           && isValidTVDisplayPhoto(incoming(), photoId)
           && incoming().updatedAt == request.time;
 
         allow update: if isAuthorizedAdminEmail()
+          && isValidId(displayId)
+          && displayId == 'active'
           && isValidId(photoId)
           && isValidTVDisplayPhoto(incoming(), photoId)
           && incoming().updatedAt == request.time
@@ -212,7 +229,10 @@ service cloud.firestore {
             'updatedAt'
           ]);
 
-        allow delete: if isAuthorizedAdminEmail() && isValidId(photoId);
+        allow delete: if isAuthorizedAdminEmail()
+          && isValidId(displayId)
+          && displayId == 'active'
+          && isValidId(photoId);
       }
     }
 
@@ -222,11 +242,12 @@ service cloud.firestore {
         && isEmailVerified()
         && isValidCollectionName(collectionName)
         && isValidId(backupId)
-        && isBackupOwner(existing());
+        && (resource == null || isBackupOwner(existing()));
 
       allow list: if isSignedIn()
         && isEmailVerified()
         && isValidCollectionName(collectionName)
+        && resource != null
         && isBackupOwner(existing());
 
       allow create: if isSignedIn()

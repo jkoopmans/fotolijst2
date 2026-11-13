@@ -50,10 +50,22 @@ export async function fetchAllSelectedPhotos(
 }
 
 /**
+ * Extract a Google Drive file ID from legacy lh3 or drive.google.com URLs.
+ */
+export function extractDriveFileIdFromUrl(url: string): string | null {
+  if (!url || url.startsWith('data:')) return null;
+  const lh3Match = url.match(/lh3\.googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/);
+  if (lh3Match) return lh3Match[1];
+  const driveIdMatch = url.match(/drive\.google\.com\/(?:file\/d\/|thumbnail\?id=)([a-zA-Z0-9_-]+)/);
+  if (driveIdMatch) return driveIdMatch[1];
+  return null;
+}
+
+/**
  * Download a Google Drive image using the user's OAuth token and compress it
  * into a portable JPEG data URL so it displays on any unauthenticated TV / preview.
  */
-async function fetchAndCompressDriveImage(
+export async function fetchAndCompressDriveImage(
   fileId: string,
   accessToken: string,
   maxDimension: number = 1440

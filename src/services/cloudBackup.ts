@@ -149,23 +149,39 @@ export function sanitizeBackupId(id?: string): string {
   return cleaned;
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (value === null || typeof value !== 'object') return false;
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
 /**
- * Recursively remove undefined properties since Firestore rejects undefined values.
+ * Recursively remove undefined/null properties on plain objects while preserving
+ * Firestore FieldValue/Timestamp class instances untouched.
  */
 function stripUndefined<T>(value: T): T {
   if (Array.isArray(value)) {
-    return value.map((item) => stripUndefined(item)) as unknown as T;
+    return value
+      .filter((item) => item !== undefined && item !== null)
+      .map((item) => stripUndefined(item)) as unknown as T;
   }
-  if (value !== null && typeof value === 'object') {
+  if (isPlainObject(value)) {
     const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      if (v !== undefined) {
+    for (const [k, v] of Object.entries(value)) {
+      if (v !== undefined && v !== null) {
         out[k] = stripUndefined(v);
       }
     }
     return out as T;
   }
   return value;
+}
+
+function normalizePhotoSource(source: unknown): 'google_photos' | 'curated' | 'custom' {
+  if (source === 'google_photos' || source === 'curated' || source === 'custom') {
+    return source;
+  }
+  return 'custom';
 }
 
 /**
@@ -449,45 +465,55 @@ export async function publishTVDisplayState({
   }
 
   const displayDocPath = 'tv_display/active';
-  const safePhotosList = photos.slice(0, 100).map((photo, index) => {
-    const cleanId = String(photo.id || `photo_${index}`)
-      .replace(/[^a-zA-Z0-9_-]/g, '_')
-      .slice(0, 128);
-    let url = String(photo.url || '');
-    if (url.length > 890_000) {
-      url = '';
-    }
-    return {
-      id: cleanId || `photo_${index}`,
-      url,
-      title: photo.title ? String(photo.title).slice(0, 200) : undefined,
-      albumTitle: photo.albumTitle ? String(photo.albumTitle).slice(0, 120) : undefined,
-      createTime: photo.createTime ? String(photo.createTime).slice(0, 64) : undefined,
-      source: photo.source || ('google_photos' as const),
-      order: index,
-    };
-  }).filter((p) => p.url.length > 0);
+  const safePhotosList = photos
+    .slice(0, 100)
+    .map((photo, index) => {
+      const cleanId =
+        String(photo.id || `photo_${index}`)
+          .replace(/[^a-zA-Z0-9_-]/g, '_')
+          .slice(0, 128) || `photo_${index}`;
+      let url = String(photo.url || '').trim();
+      if (url.length > 890_000) {
+        url = '';
+      }
+      return {
+        id: cleanId,
+        url,
+        title: photo.title && String(photo.title).trim() ? String(photo.title).trim().slice(0, 200) : undefined,
+        albumTitle:
+          photo.albumTitle && String(photo.albumTitle).trim()
+            ? String(photo.albumTitle).trim().slice(0, 120)
+            : undefined,
+        createTime:
+          photo.createTime && String(photo.createTime).trim()
+            ? String(photo.createTime).trim().slice(0, 64)
+            : undefined,
+        source: normalizePhotoSource(photo.source),
+        order: index,
+      };
+    })
+    .filter((p) => p.url.length > 0);
 
   const photoIds = safePhotosList.map((p) => p.id);
 
   // Publish each photo document in /tv_display/active/photos/{photoId}
   for (const photo of safePhotosList) {
     const photoPath = `tv_display/active/photos/${photo.id}`;
+    const cleanFields = stripUndefined({
+      isPublicDisplay: true,
+      id: photo.id,
+      url: photo.url,
+      title: photo.title,
+      albumTitle: photo.albumTitle,
+      createTime: photo.createTime,
+      source: photo.source,
+      order: photo.order,
+    });
     try {
-      await setDoc(
-        doc(db, 'tv_display', 'active', 'photos', photo.id),
-        stripUndefined({
-          isPublicDisplay: true,
-          id: photo.id,
-          url: photo.url,
-          title: photo.title,
-          albumTitle: photo.albumTitle,
-          createTime: photo.createTime,
-          source: photo.source,
-          order: photo.order,
-          updatedAt: serverTimestamp(),
-        })
-      );
+      await setDoc(doc(db, 'tv_display', 'active', 'photos', photo.id), {
+        ...cleanFields,
+        updatedAt: serverTimestamp(),
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, photoPath);
     }

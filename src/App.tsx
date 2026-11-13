@@ -37,6 +37,8 @@ import {
   fetchAlbumPhotos,
   fetchAllSelectedPhotos,
   getSampleOrCuratedPhotos,
+  fetchAndCompressDriveImage,
+  extractDriveFileIdFromUrl,
 } from './services/googlePhotos';
 import {
   fetchUserCalendars,
@@ -108,6 +110,7 @@ export default function App() {
   const [isSyncingToCloud, setIsSyncingToCloud] = useState(false);
   const [cloudSyncError, setCloudSyncError] = useState<string | null>(null);
   const skipInitialEmptyOverwriteRef = useRef(true);
+  const upgradedPhotoIdsRef = useRef<Set<string>>(new Set());
 
   // Switch between TV mode and dedicated /admin URL
   const switchMode = (mode: 'tv' | 'admin') => {
@@ -460,6 +463,45 @@ export default function App() {
     }, intervalMs);
     return () => clearInterval(interval);
   }, [handleRefreshCalendar, settings.refreshIntervalMinutes]);
+
+  // Upgrade any existing legacy Google Drive photo URLs to portable data URLs when token is present
+  useEffect(() => {
+    if (!token || !settings.customPhotos?.length) return;
+
+    const candidates = settings.customPhotos.filter((p) => {
+      if (upgradedPhotoIdsRef.current.has(p.id)) return false;
+      if (p.url.startsWith('data:')) return false;
+      return Boolean(extractDriveFileIdFromUrl(p.url) || (p.source === 'google_photos' && p.id));
+    });
+
+    if (candidates.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      const updates = new Map<string, string>();
+      for (const photo of candidates) {
+        upgradedPhotoIdsRef.current.add(photo.id);
+        const fileId = extractDriveFileIdFromUrl(photo.url) || photo.id;
+        const dataUrl = await fetchAndCompressDriveImage(fileId, token);
+        if (dataUrl && !cancelled) {
+          updates.set(photo.id, dataUrl);
+        }
+      }
+
+      if (!cancelled && updates.size > 0) {
+        updateSettings((prev) => ({
+          ...prev,
+          customPhotos: prev.customPhotos.map((p) =>
+            updates.has(p.id) ? { ...p, url: updates.get(p.id)! } : p
+          ),
+        }));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, settings.customPhotos, updateSettings]);
 
 
 

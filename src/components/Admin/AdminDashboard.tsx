@@ -240,23 +240,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* Live Cloud TV-Sync Status Banner */}
         <div
           className={`rounded-2xl p-3.5 sm:p-4 border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-            isCloudSyncActive
+            cloudSyncError
+              ? 'bg-rose-950/30 border-rose-600/40 text-rose-100'
+              : isCloudSyncActive
               ? 'bg-emerald-950/25 border-emerald-700/40 text-emerald-200'
               : 'bg-amber-950/30 border-amber-600/40 text-amber-100'
           }`}
         >
-          <div className="flex items-start sm:items-center gap-3">
+          <div className="flex items-start sm:items-center gap-3 min-w-0">
             <div
               className={`p-2 rounded-xl flex-shrink-0 ${
-                isCloudSyncActive
+                cloudSyncError
+                  ? 'bg-rose-500/20 text-rose-400'
+                  : isCloudSyncActive
                   ? 'bg-emerald-500/20 text-emerald-400'
                   : 'bg-amber-500/20 text-amber-400'
               }`}
             >
               <Cloud className="w-4 h-4" />
             </div>
-            <div className="text-xs">
-              {isCloudSyncActive ? (
+            <div className="text-xs min-w-0">
+              {cloudSyncError ? (
+                <>
+                  <p className="font-semibold text-white">
+                    Publiceren naar TV Cloud-Sync mislukt
+                  </p>
+                  <p className="text-[11px] text-rose-200/90 mt-0.5 break-all">
+                    {cloudSyncError}
+                  </p>
+                </>
+              ) : isCloudSyncActive ? (
                 <>
                   <p className="font-semibold text-white">
                     {isSyncingToCloud
@@ -277,9 +290,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </p>
                 </>
               )}
-              {cloudSyncError && (
-                <p className="text-[11px] text-rose-300 mt-1">{cloudSyncError}</p>
-              )}
             </div>
           </div>
 
@@ -289,7 +299,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               onClick={onActivateCloudSync}
               disabled={isSyncingToCloud}
               className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all flex-shrink-0 cursor-pointer ${
-                isCloudSyncActive
+                cloudSyncError
+                  ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-md'
+                  : isCloudSyncActive
                   ? 'bg-emerald-600/30 hover:bg-emerald-600/40 text-emerald-200 border border-emerald-500/40'
                   : 'bg-amber-500 hover:bg-amber-400 text-neutral-950 shadow-md'
               }`}
@@ -298,6 +310,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <span>
                 {isSyncingToCloud
                   ? 'Synchroniseren...'
+                  : cloudSyncError
+                  ? 'Opnieuw publiceren'
                   : isCloudSyncActive
                   ? 'Nu opnieuw publiceren'
                   : 'Publiceer naar TV (zonder login)'}
