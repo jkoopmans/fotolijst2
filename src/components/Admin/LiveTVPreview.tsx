@@ -32,11 +32,38 @@ export const LiveTVPreview: React.FC<LiveTVPreviewProps> = ({
     month: 'short',
   });
 
-  const todayStr = currentTime.toISOString().split('T')[0];
-  const todayEvents = events.filter((ev) => {
-    const evDateStr = (ev.start.dateTime || ev.start.date || '').split('T')[0];
-    return evDateStr === todayStr;
-  });
+  const getLocalDateKey = (date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const getEventLocalDateKey = (ev: CalendarEvent) => {
+    if (ev.start.dateTime) return getLocalDateKey(new Date(ev.start.dateTime));
+    return (ev.start.date || '').split('T')[0];
+  };
+
+  const todayStr = getLocalDateKey(currentTime);
+  const todayEvents = events.filter((ev) => getEventLocalDateKey(ev) === todayStr);
+  const previewEvents = todayEvents.length > 0 ? todayEvents : events.filter((ev) => getEventLocalDateKey(ev) >= todayStr);
+
+  const formatEventTime = (ev: CalendarEvent) => {
+    if (ev.isAllDay) return 'Hele dag';
+    if (!ev.start.dateTime) return '';
+    const start = new Date(ev.start.dateTime).toLocaleTimeString('nl-NL', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    if (ev.end.dateTime) {
+      const end = new Date(ev.end.dateTime).toLocaleTimeString('nl-NL', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      return `${start} – ${end}`;
+    }
+    return start;
+  };
 
   return (
     <div className="bg-neutral-900/80 border border-neutral-800 rounded-3xl p-5 space-y-4">
@@ -102,12 +129,12 @@ export const LiveTVPreview: React.FC<LiveTVPreviewProps> = ({
           >
             {/* Clean Header */}
             <div className="text-[10px] font-bold text-white mb-1.5 flex items-center gap-1">
-              <span>Agenda</span>
+              <span>{todayEvents.length > 0 ? 'Agenda' : 'Binnenkort'}</span>
             </div>
 
             {/* Event list */}
             <div className="space-y-1 overflow-hidden flex-1">
-              {todayEvents.slice(0, 3).map((ev, i) => (
+              {previewEvents.slice(0, 3).map((ev, i) => (
                 <div
                   key={ev.id}
                   className="bg-white/10 p-1.5 rounded-lg text-[9px] border border-white/5 flex items-start gap-1.5"
@@ -119,12 +146,12 @@ export const LiveTVPreview: React.FC<LiveTVPreviewProps> = ({
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold truncate text-white leading-tight">{ev.summary}</p>
                     <p className="text-[8px] text-slate-300">
-                      {ev.isAllDay ? 'Hele dag' : '10:00 - 11:30'}
+                      {formatEventTime(ev)}
                     </p>
                   </div>
                 </div>
               ))}
-              {todayEvents.length === 0 && (
+              {previewEvents.length === 0 && (
                 <div className="text-[8px] text-slate-400 italic">Geen afspraken gepland</div>
               )}
             </div>

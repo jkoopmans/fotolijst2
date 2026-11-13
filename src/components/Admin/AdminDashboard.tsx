@@ -23,6 +23,8 @@ import {
   ExternalLink,
   ShieldCheck,
   CheckCircle,
+  Cloud,
+  CloudUpload,
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -54,6 +56,10 @@ interface AdminDashboardProps {
     photos?: PhotoItem[];
     events?: CalendarEvent[];
   }) => void;
+  isCloudSyncActive?: boolean;
+  isSyncingToCloud?: boolean;
+  cloudSyncError?: string | null;
+  onActivateCloudSync?: () => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -81,6 +87,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   photosError,
   accessToken,
   onRestoreBackup,
+  isCloudSyncActive = false,
+  isSyncingToCloud = false,
+  cloudSyncError = null,
+  onActivateCloudSync,
 }) => {
   const [activeTab, setActiveTab] = useState<'photos' | 'calendar' | 'display' | 'tv'>('photos');
 
@@ -225,6 +235,75 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <Tv className="w-5 h-5" />
             <span>Open TV Weergave Scherm</span>
           </button>
+        </div>
+
+        {/* Live Cloud TV-Sync Status Banner */}
+        <div
+          className={`rounded-2xl p-3.5 sm:p-4 border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+            isCloudSyncActive
+              ? 'bg-emerald-950/25 border-emerald-700/40 text-emerald-200'
+              : 'bg-amber-950/30 border-amber-600/40 text-amber-100'
+          }`}
+        >
+          <div className="flex items-start sm:items-center gap-3">
+            <div
+              className={`p-2 rounded-xl flex-shrink-0 ${
+                isCloudSyncActive
+                  ? 'bg-emerald-500/20 text-emerald-400'
+                  : 'bg-amber-500/20 text-amber-400'
+              }`}
+            >
+              <Cloud className="w-4 h-4" />
+            </div>
+            <div className="text-xs">
+              {isCloudSyncActive ? (
+                <>
+                  <p className="font-semibold text-white">
+                    {isSyncingToCloud
+                      ? 'TV-scherm wordt bijgewerkt in Firestore...'
+                      : 'Live TV Cloud-Sync actief'}
+                  </p>
+                  <p className="text-[11px] text-emerald-300/80">
+                    Jouw {photos.length} foto's en {events.length} agenda-afspraken zijn automatisch zichtbaar op het TV-scherm zonder inloggen.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-semibold text-white">
+                    Activeer TV Cloud-Sync voor weergave zonder inloggen
+                  </p>
+                  <p className="text-[11px] text-amber-200/80">
+                    Klik rechts om je {photos.length} gekozen foto's en {events.length} afspraken direct te publiceren voor elke TV en preview.
+                  </p>
+                </>
+              )}
+              {cloudSyncError && (
+                <p className="text-[11px] text-rose-300 mt-1">{cloudSyncError}</p>
+              )}
+            </div>
+          </div>
+
+          {onActivateCloudSync && (
+            <button
+              type="button"
+              onClick={onActivateCloudSync}
+              disabled={isSyncingToCloud}
+              className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all flex-shrink-0 cursor-pointer ${
+                isCloudSyncActive
+                  ? 'bg-emerald-600/30 hover:bg-emerald-600/40 text-emerald-200 border border-emerald-500/40'
+                  : 'bg-amber-500 hover:bg-amber-400 text-neutral-950 shadow-md'
+              }`}
+            >
+              <CloudUpload className="w-3.5 h-3.5" />
+              <span>
+                {isSyncingToCloud
+                  ? 'Synchroniseren...'
+                  : isCloudSyncActive
+                  ? 'Nu opnieuw publiceren'
+                  : 'Publiceer naar TV (zonder login)'}
+              </span>
+            </button>
+          )}
         </div>
 
         {/* Tab 1: Photos & Albums */}

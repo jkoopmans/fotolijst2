@@ -10,6 +10,7 @@ import {
   query,
   where,
   getDocs,
+  onSnapshot,
   serverTimestamp,
   Timestamp,
 } from 'firebase/firestore';
@@ -417,3 +418,213 @@ export async function deleteCloudBackup(
     handleFirestoreError(error, OperationType.DELETE, docPath);
   }
 }
+
+/**
+ * Returns true if Firebase Auth currently has an active verified user session.
+ */
+export function isFirebaseSessionActive(): boolean {
+  return Boolean(auth.currentUser && auth.currentUser.emailVerified);
+}
+
+/**
+ * Publish current non-PII settings, calendar events, and photos to /tv_display/active
+ * so any TV or preview screen can render them without signing in.
+ */
+export async function publishTVDisplayState({
+  settings,
+  photos,
+  events,
+  promptAuthIfNeeded = false,
+}: {
+  settings: FrameSettings;
+  photos: PhotoItem[];
+  events: CalendarEvent[];
+  promptAuthIfNeeded?: boolean;
+}): Promise<boolean> {
+  if (!auth.currentUser) {
+    if (!promptAuthIfNeeded) {
+      return false;
+    }
+    await ensureFirebaseAuth();
+  }
+
+  const displayDocPath = 'tv_display/active';
+  const safePhotosList = photos.slice(0, 100).map((photo, index) => {
+    const cleanId = String(photo.id || `photo_${index}`)
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .slice(0, 128);
+    let url = String(photo.url || '');
+    if (url.length > 890_000) {
+      url = '';
+    }
+    return {
+      id: cleanId || `photo_${index}`,
+      url,
+      title: photo.title ? String(photo.title).slice(0, 200) : undefined,
+      albumTitle: photo.albumTitle ? String(photo.albumTitle).slice(0, 120) : undefined,
+      createTime: photo.createTime ? String(photo.createTime).slice(0, 64) : undefined,
+      source: photo.source || ('google_photos' as const),
+      order: index,
+    };
+  }).filter((p) => p.url.length > 0);
+
+  const photoIds = safePhotosList.map((p) => p.id);
+
+  // Publish each photo document in /tv_display/active/photos/{photoId}
+  for (const photo of safePhotosList) {
+    const photoPath = `tv_display/active/photos/${photo.id}`;
+    try {
+      await setDoc(
+        doc(db, 'tv_display', 'active', 'photos', photo.id),
+        stripUndefined({
+          isPublicDisplay: true,
+          id: photo.id,
+          url: photo.url,
+          title: photo.title,
+          albumTitle: photo.albumTitle,
+          createTime: photo.createTime,
+          source: photo.source,
+          order: photo.order,
+          updatedAt: serverTimestamp(),
+        })
+      );
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, photoPath);
+    }
+  }
+
+  // Remove stale photos that were unselected/deleted in admin
+  try {
+    const existingPhotosSnap = await getDocs(
+      query(collection(db, 'tv_display', 'active', 'photos'), where('isPublicDisplay', '==', true))
+    );
+    const activeIdSet = new Set(photoIds);
+    for (const existingDoc of existingPhotosSnap.docs) {
+      if (!activeIdSet.has(existingDoc.id)) {
+        await deleteDoc(doc(db, 'tv_display', 'active', 'photos', existingDoc.id));
+      }
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, 'tv_display/active/photos');
+  }
+
+  // Strip PII/secrets from published display settings
+  const publicSettings = stripUndefined({
+    slideInterval: settings.slideInterval,
+    transitionStyle: settings.transitionStyle,
+    fitMode: settings.fitMode,
+    showCalendarOverlay: settings.showCalendarOverlay,
+    overlayPosition: settings.overlayPosition,
+    overlayWidth: settings.overlayWidth,
+    overlayOpacity: settings.overlayOpacity,
+    showClock: settings.showClock,
+    clockFormat: settings.clockFormat,
+    selectedAlbumIds: settings.selectedAlbumIds || [],
+    selectedCalendarIds: settings.selectedCalendarIds || ['primary'],
+    refreshIntervalMinutes: settings.refreshIntervalMinutes || 5,
+    curatedAlbumEnabled: false,
+  });
+
+  const safeEvents = prepareEventsForFirestore(events);
+
+  try {
+    await setDoc(doc(db, 'tv_display', 'active'), {
+      isPublicDisplay: true,
+      settings: publicSettings,
+      events: safeEvents,
+      photoIds,
+      updatedAt: serverTimestamp(),
+    });
+    return true;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, displayDocPath);
+  }
+}
+
+/**
+ * Fetch the published TV display state (photos, calendar events, display settings)
+ * from Firestore WITHOUT requiring any user login.
+ */
+export async function fetchPublicTVDisplay(): Promise<{
+  settings?: Partial<FrameSettings>;
+  photos: PhotoItem[];
+  events: CalendarEvent[];
+} | null> {
+  try {
+    const stateSnap = await getDoc(doc(db, 'tv_display', 'active'));
+    if (!stateSnap.exists()) {
+      return null;
+    }
+
+    const stateData = stateSnap.data() as any;
+
+    const photosSnap = await getDocs(
+      query(collection(db, 'tv_display', 'active', 'photos'), where('isPublicDisplay', '==', true))
+    );
+
+    const photosWithOrder = photosSnap.docs.map((d) => {
+      const data = d.data() as any;
+      return {
+        order: typeof data.order === 'number' ? data.order : 0,
+        item: {
+          id: data.id || d.id,
+          url: data.url,
+          title: data.title,
+          albumTitle: data.albumTitle,
+          createTime: data.createTime,
+          source: data.source || 'google_photos',
+        } as PhotoItem,
+      };
+    });
+
+    photosWithOrder.sort((a, b) => a.order - b.order);
+    const photos = photosWithOrder.map((p) => p.item);
+
+    return {
+      settings: stateData.settings || {},
+      photos,
+      events: Array.isArray(stateData.events) ? stateData.events : [],
+    };
+  } catch (error: any) {
+    // Missing document / initial empty state before first publish returns null silently
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes('Missing or insufficient permissions') || msg.includes('not-found')) {
+      return null;
+    }
+    handleFirestoreError(error, OperationType.GET, 'tv_display/active');
+  }
+}
+
+/**
+ * Subscribe to real-time updates on the published TV display state.
+ */
+export function subscribeToPublicTVDisplay(
+  onUpdate: (data: {
+    settings?: Partial<FrameSettings>;
+    photos: PhotoItem[];
+    events: CalendarEvent[];
+  }) => void
+): () => void {
+  const docRef = doc(db, 'tv_display', 'active');
+  return onSnapshot(
+    docRef,
+    async (snap) => {
+      if (!snap.exists()) return;
+      try {
+        const fullState = await fetchPublicTVDisplay();
+        if (fullState) {
+          onUpdate(fullState);
+        }
+      } catch (err) {
+        console.warn('Error refreshing public TV display state:', err);
+      }
+    },
+    (error) => {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (!msg.includes('Missing or insufficient permissions')) {
+        handleFirestoreError(error, OperationType.GET, 'tv_display/active');
+      }
+    }
+  );
+}
+

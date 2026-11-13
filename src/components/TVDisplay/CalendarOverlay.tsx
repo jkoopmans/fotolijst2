@@ -19,20 +19,31 @@ export const CalendarOverlay: React.FC<CalendarOverlayProps> = ({
   events,
   settings,
 }) => {
+  const getLocalDateKey = (date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const getEventLocalDateKey = (ev: CalendarEvent) => {
+    if (ev.start.dateTime) {
+      return getLocalDateKey(new Date(ev.start.dateTime));
+    }
+    return (ev.start.date || '').split('T')[0];
+  };
+
   const currentTime = new Date();
-  const todayStr = currentTime.toISOString().split('T')[0];
+  const todayStr = getLocalDateKey(currentTime);
   const tomorrow = new Date(currentTime);
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+  const tomorrowStr = getLocalDateKey(tomorrow);
 
-  const todayEvents = events.filter((ev) => {
-    const evDateStr = (ev.start.dateTime || ev.start.date || '').split('T')[0];
-    return evDateStr === todayStr;
-  });
+  const todayEvents = events.filter((ev) => getEventLocalDateKey(ev) === todayStr);
 
   const upcomingEvents = events.filter((ev) => {
-    const evDateStr = (ev.start.dateTime || ev.start.date || '').split('T')[0];
-    return evDateStr !== todayStr;
+    const evKey = getEventLocalDateKey(ev);
+    return evKey > todayStr;
   });
 
   // Helper for event time formatting (HH:MM - HH:MM)
@@ -52,7 +63,7 @@ export const CalendarOverlay: React.FC<CalendarOverlayProps> = ({
 
   const formatEventDayHeader = (dateStr: string) => {
     const parsed = new Date(dateStr);
-    const dayStr = dateStr.split('T')[0];
+    const dayStr = dateStr.includes('T') ? getLocalDateKey(parsed) : dateStr;
     if (dayStr === tomorrowStr) return 'Morgen';
 
     return parsed.toLocaleDateString('nl-NL', {

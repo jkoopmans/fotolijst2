@@ -78,6 +78,101 @@
         "createdAt",
         "updatedAt"
       ]
+    },
+    "TVDisplayState": {
+      "title": "TVDisplayState",
+      "description": "Live published TV display state (non-PII display settings, calendar events, and ordered photo IDs) readable by the TV frame without requiring user login.",
+      "type": "object",
+      "properties": {
+        "isPublicDisplay": {
+          "type": "boolean",
+          "description": "Always true for the active TV display configuration."
+        },
+        "settings": {
+          "type": "object",
+          "description": "Public display settings (no PII or API keys)."
+        },
+        "events": {
+          "type": "array",
+          "description": "Published upcoming calendar events (up to 100 items)."
+        },
+        "photoIds": {
+          "type": "array",
+          "description": "Ordered list of published photo document IDs (up to 100 items)."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the last publish."
+        }
+      },
+      "required": [
+        "isPublicDisplay",
+        "settings",
+        "events",
+        "photoIds",
+        "updatedAt"
+      ]
+    },
+    "TVDisplayPhoto": {
+      "title": "TVDisplayPhoto",
+      "description": "Individual published photo stored in the TV display subcollection so photos load reliably without Google Drive login or exceeding 1MB doc limits.",
+      "type": "object",
+      "properties": {
+        "isPublicDisplay": {
+          "type": "boolean",
+          "description": "Always true for published display photos."
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Unique photo ID."
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 900000,
+          "description": "Image URL or portable JPEG data URL."
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Optional photo title."
+        },
+        "albumTitle": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Optional album title."
+        },
+        "createTime": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Optional ISO timestamp."
+        },
+        "source": {
+          "type": "string",
+          "enum": ["google_photos", "curated", "custom"],
+          "description": "Photo source."
+        },
+        "order": {
+          "type": "number",
+          "description": "Sort index for slideshow order."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the last update."
+        }
+      },
+      "required": [
+        "isPublicDisplay",
+        "id",
+        "url",
+        "source",
+        "order",
+        "updatedAt"
+      ]
     }
   },
   "firestore": {
@@ -86,6 +181,18 @@
         "$ref": "#/entities/CloudBackup"
       },
       "description": "Default collection for storing TV fotolijst cloud backups; users may also target custom collection names with the same CloudBackup schema."
+    },
+    "/tv_display/active": {
+      "schema": {
+        "$ref": "#/entities/TVDisplayState"
+      },
+      "description": "Published live TV display configuration (display settings and synced calendar events) readable without sign-in."
+    },
+    "/tv_display/active/photos/{photoId}": {
+      "schema": {
+        "$ref": "#/entities/TVDisplayPhoto"
+      },
+      "description": "Published TV display photos readable by the TV frame without sign-in."
     }
   }
 }

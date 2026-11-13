@@ -63,16 +63,25 @@ export const PhotosManager: React.FC<PhotosManagerProps> = ({
     openGooglePhotoPicker({
       accessToken,
       developerKey: settings.googleApiKey,
+      onProcessingStart: () => {
+        setIsOpeningPicker(true);
+      },
       onPhotosPicked: (pickedPhotos) => {
         setIsOpeningPicker(false);
-        onUpdateSettings((prev) => ({
-          ...prev,
-          customPhotos: [...pickedPhotos, ...prev.customPhotos],
-        }));
+        onUpdateSettings((prev) => {
+          const existingIds = new Set(prev.customPhotos.map((p) => p.id));
+          const uniquePicked = pickedPhotos.filter((p) => !existingIds.has(p.id));
+          return {
+            ...prev,
+            customPhotos: [...uniquePicked, ...prev.customPhotos],
+          };
+        });
       },
       onError: (err) => {
         setIsOpeningPicker(false);
-        console.warn('Google Picker notice:', err);
+        if (err) {
+          console.warn('Google Picker notice:', err);
+        }
       },
     });
   };

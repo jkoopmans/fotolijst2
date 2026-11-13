@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
 import {
   FrameSettings,
   PhotoItem,
@@ -14,6 +15,7 @@ import {
   AuthUserProfile,
 } from './types';
 import {
+  auth,
   initAuth,
   googleSignIn,
   logout,
@@ -41,6 +43,12 @@ import {
   fetchUpcomingEvents,
   SAMPLE_CALENDAR_EVENTS,
 } from './services/googleCalendar';
+import {
+  publishTVDisplayState,
+  fetchPublicTVDisplay,
+  subscribeToPublicTVDisplay,
+  isFirebaseSessionActive,
+} from './services/cloudBackup';
 import { TVFrame } from './components/TVDisplay/TVFrame';
 import { AdminDashboard } from './components/Admin/AdminDashboard';
 import { AdminLoginScreen } from './components/Auth/AdminLoginScreen';
@@ -95,6 +103,12 @@ export default function App() {
   // Weather
   const [weather, setWeather] = useState<WeatherData | null>(null);
 
+  // Firestore Cloud Sync status
+  const [isCloudSyncActive, setIsCloudSyncActive] = useState<boolean>(isFirebaseSessionActive);
+  const [isSyncingToCloud, setIsSyncingToCloud] = useState(false);
+  const [cloudSyncError, setCloudSyncError] = useState<string | null>(null);
+  const skipInitialEmptyOverwriteRef = useRef(true);
+
   // Switch between TV mode and dedicated /admin URL
   const switchMode = (mode: 'tv' | 'admin') => {
     setCurrentMode(mode);
@@ -141,6 +155,7 @@ export default function App() {
 
   // Update & persist settings helper
   const updateSettings = useCallback((updater: (prev: FrameSettings) => FrameSettings) => {
+    skipInitialEmptyOverwriteRef.current = false;
     setSettings((prev) => {
       const next = updater(prev);
       saveStoredSettings(next);
@@ -261,8 +276,74 @@ export default function App() {
         setAuthChecked(true);
       }
     );
-    return () => unsubscribe();
+    const unsubFb = onAuthStateChanged(auth, (fbUser) => {
+      setIsCloudSyncActive(Boolean(fbUser && fbUser.emailVerified));
+    });
+    return () => {
+      unsubscribe();
+      unsubFb();
+    };
   }, []);
+
+  // Load & subscribe to published Firestore TV display state (works WITHOUT login!)
+  useEffect(() => {
+    let isMounted = true;
+
+    const applyPublishedState = (data: {
+      settings?: Partial<FrameSettings>;
+      photos: PhotoItem[];
+      events: CalendarEvent[];
+    }) => {
+      if (!isMounted) return;
+      if (Array.isArray(data.photos) && data.photos.length > 0) {
+        setPhotos(data.photos);
+        setCachedPhotos(data.photos);
+      }
+      if (Array.isArray(data.events)) {
+        setEvents(data.events);
+        setCachedEvents(data.events);
+      }
+      if (data.settings || (Array.isArray(data.photos) && data.photos.length > 0)) {
+        setSettings((prev) => {
+          const next: FrameSettings = {
+            ...prev,
+            ...(data.settings || {}),
+            customPhotos:
+              Array.isArray(data.photos) && data.photos.length > 0
+                ? data.photos
+                : prev.customPhotos,
+            curatedAlbumEnabled: false,
+          };
+          saveStoredSettings(next);
+          return next;
+        });
+      }
+    };
+
+    // Fetch immediately on boot if in TV mode OR if local photos/events are empty
+    fetchPublicTVDisplay()
+      .then((published) => {
+        if (!published || !isMounted) return;
+        if (currentMode === 'tv' || photos.length === 0 || events.length === 0) {
+          applyPublishedState(published);
+        }
+      })
+      .catch((err) => console.warn('Public TV fetch notice:', err));
+
+    // Keep TV display in sync live when admin updates from another browser/phone
+    const unsubscribeLive =
+      currentMode === 'tv'
+        ? subscribeToPublicTVDisplay((published) => {
+            applyPublishedState(published);
+          })
+        : () => {};
+
+    return () => {
+      isMounted = false;
+      unsubscribeLive();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentMode]);
 
   // Google Login Handler
   const handleLogin = async () => {
@@ -414,12 +495,12 @@ export default function App() {
       if (isMounted) {
         // Zero dummy content: only use the user's actual photos
         const finalList = list;
-        // Only update if we have photos or if customPhotos was explicitly emptied
-        if (finalList.length > 0 || (settings.customPhotos && settings.customPhotos.length === 0)) {
+        if (finalList.length > 0) {
           setPhotos(finalList);
-          if (finalList.length > 0) {
-            setCachedPhotos(finalList);
-          }
+          setCachedPhotos(finalList);
+        } else if (!skipInitialEmptyOverwriteRef.current && settings.customPhotos?.length === 0) {
+          setPhotos([]);
+          setCachedPhotos([]);
         }
       }
     };
@@ -491,6 +572,56 @@ export default function App() {
     settings.authorizedEmails.map((e) => e.toLowerCase()).includes(user.email.toLowerCase())
   );
 
+  // Auto-publish settings, photos & events to Firestore /tv_display/active when Cloud Sync is active
+  useEffect(() => {
+    if (currentMode !== 'admin' || !isAuthorizedAdmin || !isCloudSyncActive) {
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSyncingToCloud(true);
+      setCloudSyncError(null);
+      try {
+        await publishTVDisplayState({
+          settings,
+          photos,
+          events,
+          promptAuthIfNeeded: false,
+        });
+      } catch (err: any) {
+        console.warn('Auto cloud sync error:', err);
+        setCloudSyncError(err?.message || 'Kon wijzigingen niet publiceren naar Firestore.');
+      } finally {
+        setIsSyncingToCloud(false);
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [currentMode, isAuthorizedAdmin, isCloudSyncActive, settings, photos, events]);
+
+  const handleActivateCloudSync = useCallback(async () => {
+    setIsSyncingToCloud(true);
+    setCloudSyncError(null);
+    try {
+      const ok = await publishTVDisplayState({
+        settings,
+        photos,
+        events,
+        promptAuthIfNeeded: true,
+      });
+      if (ok) {
+        setIsCloudSyncActive(true);
+        setSaveNotice(true);
+        setTimeout(() => setSaveNotice(false), 2500);
+      }
+    } catch (err: any) {
+      console.error('Manual cloud sync error:', err);
+      setCloudSyncError(err?.message || 'Cloud TV-Sync activatie mislukt.');
+    } finally {
+      setIsSyncingToCloud(false);
+    }
+  }, [settings, photos, events]);
+
   // If in Admin mode:
   if (currentMode === 'admin') {
     // If not signed in or not authorized:
@@ -533,6 +664,10 @@ export default function App() {
         photosError={photosError}
         accessToken={token}
         onRestoreBackup={handleRestoreBackup}
+        isCloudSyncActive={isCloudSyncActive}
+        isSyncingToCloud={isSyncingToCloud}
+        cloudSyncError={cloudSyncError}
+        onActivateCloudSync={handleActivateCloudSync}
       />
     );
   }

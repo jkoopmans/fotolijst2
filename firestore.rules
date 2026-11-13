@@ -17,7 +17,7 @@ service cloud.firestore {
         && name.size() >= 2
         && name.size() <= 64
         && name.matches('^[a-zA-Z0-9_\\-]+$')
-        && !(name in ['admins', 'users', 'system', 'config', 'test']);
+        && !(name in ['admins', 'users', 'system', 'config', 'test', 'tv_display']);
     }
 
     function incoming() {
@@ -46,7 +46,7 @@ service cloud.firestore {
         && (data.ownerUid == request.auth.uid || isAuthorizedAdminEmail());
     }
 
-    // 3. Entity Validation Blueprint: CloudBackup
+    // 3. Entity Validation Blueprints
     function isValidCloudBackup(data, colName, docId) {
       return data.keys().hasAll([
           'ownerUid',
@@ -103,7 +103,120 @@ service cloud.firestore {
         && data.updatedAt is timestamp;
     }
 
-    // 4. User-defined backup collections (including default 'tv_backups')
+    function isValidTVDisplayState(data) {
+      return data.keys().hasAll([
+          'isPublicDisplay',
+          'settings',
+          'events',
+          'photoIds',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'isPublicDisplay',
+          'settings',
+          'events',
+          'photoIds',
+          'updatedAt'
+        ])
+        && data.isPublicDisplay == true
+        && data.settings is map
+        && data.events is list
+        && data.events.size() <= 100
+        && (data.events.size() == 0 || data.events[0] is map)
+        && data.photoIds is list
+        && data.photoIds.size() <= 100
+        && (data.photoIds.size() == 0 || data.photoIds[0] is string)
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidTVDisplayPhoto(data, photoId) {
+      return data.keys().hasAll([
+          'isPublicDisplay',
+          'id',
+          'url',
+          'source',
+          'order',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'isPublicDisplay',
+          'id',
+          'url',
+          'title',
+          'albumTitle',
+          'createTime',
+          'source',
+          'order',
+          'updatedAt'
+        ])
+        && data.isPublicDisplay == true
+        && data.id is string
+        && data.id.size() >= 1
+        && data.id.size() <= 128
+        && data.id == photoId
+        && data.url is string
+        && data.url.size() >= 1
+        && data.url.size() <= 900000
+        && (!('title' in data) || (data.title is string && data.title.size() <= 200))
+        && (!('albumTitle' in data) || (data.albumTitle is string && data.albumTitle.size() <= 120))
+        && (!('createTime' in data) || (data.createTime is string && data.createTime.size() <= 64))
+        && data.source in ['google_photos', 'curated', 'custom']
+        && (data.order is int || data.order is float)
+        && data.updatedAt is timestamp;
+    }
+
+    // 4. Published TV Display State (unauthenticated ambient kiosk read, admin-only write, zero PII)
+    match /tv_display/active {
+      allow get: if existing().isPublicDisplay == true;
+      allow list: if false;
+
+      allow create: if isAuthorizedAdminEmail()
+        && isValidTVDisplayState(incoming())
+        && incoming().updatedAt == request.time;
+
+      allow update: if isAuthorizedAdminEmail()
+        && isValidTVDisplayState(incoming())
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'isPublicDisplay',
+          'settings',
+          'events',
+          'photoIds',
+          'updatedAt'
+        ]);
+
+      allow delete: if isAuthorizedAdminEmail();
+
+      match /photos/{photoId} {
+        allow get: if isValidId(photoId) && existing().isPublicDisplay == true;
+        allow list: if existing().isPublicDisplay == true;
+
+        allow create: if isAuthorizedAdminEmail()
+          && isValidId(photoId)
+          && isValidTVDisplayPhoto(incoming(), photoId)
+          && incoming().updatedAt == request.time;
+
+        allow update: if isAuthorizedAdminEmail()
+          && isValidId(photoId)
+          && isValidTVDisplayPhoto(incoming(), photoId)
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'isPublicDisplay',
+            'id',
+            'url',
+            'title',
+            'albumTitle',
+            'createTime',
+            'source',
+            'order',
+            'updatedAt'
+          ]);
+
+        allow delete: if isAuthorizedAdminEmail() && isValidId(photoId);
+      }
+    }
+
+    // 5. User-defined backup collections (including default 'tv_backups')
     match /{collectionName}/{backupId} {
       allow get: if isSignedIn()
         && isEmailVerified()

@@ -50,6 +50,70 @@ export async function fetchAllSelectedPhotos(
 }
 
 /**
+ * Download a Google Drive image using the user's OAuth token and compress it
+ * into a portable JPEG data URL so it displays on any unauthenticated TV / preview.
+ */
+async function fetchAndCompressDriveImage(
+  fileId: string,
+  accessToken: string,
+  maxDimension: number = 1440
+): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+    if (!res.ok) return null;
+
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+
+    try {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = (e) => reject(e);
+        image.src = objectUrl;
+      });
+
+      let { width, height } = img;
+      if (width > maxDimension || height > maxDimension) {
+        if (width >= height) {
+          height = Math.round((height * maxDimension) / width);
+          width = maxDimension;
+        } else {
+          width = Math.round((width * maxDimension) / height);
+          height = maxDimension;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+
+      ctx.drawImage(img, 0, 0, width, height);
+      // Use quality 0.78 to keep images crisp while staying comfortably under Firestore's 1MB doc limit
+      let dataUrl = canvas.toDataURL('image/jpeg', 0.78);
+      if (dataUrl.length > 750_000) {
+        dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+      }
+      return dataUrl;
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  } catch (err) {
+    console.warn('Could not inline Google Drive image:', fileId, err);
+    return null;
+  }
+}
+
+/**
  * Google Drive Images Picker
  * Dedicated Google Drive picker that queries user's Drive photos and images securely.
  */
@@ -58,12 +122,14 @@ export async function openGoogleDriveImagePicker({
   developerKey,
   appId,
   onPhotosPicked,
+  onProcessingStart,
   onError,
 }: {
   accessToken: string;
   developerKey?: string;
   appId?: string;
   onPhotosPicked: (photos: PhotoItem[]) => void;
+  onProcessingStart?: () => void;
   onError?: (err: any) => void;
 }): Promise<void> {
   if (typeof window === 'undefined') return;
@@ -110,37 +176,54 @@ export async function openGoogleDriveImagePicker({
         .addView(docsImagesView)
         .setOrigin(pickerOrigin)
         .setTitle('Selecteer afbeeldingen uit je Google Drive voor je TV')
-        .setCallback((data: any) => {
+        .setCallback(async (data: any) => {
           if (data.action === google.picker.Action.PICKED) {
+            if (onProcessingStart) onProcessingStart();
             const pickedDocs = data.docs || [];
-            const newPhotos: PhotoItem[] = pickedDocs.map((doc: any, index: number) => {
-              // High-resolution Google Drive image URLs
-              let imgUrl = doc.id ? `https://lh3.googleusercontent.com/d/${doc.id}=w2560-h1440` : '';
 
-              if (doc.thumbnails && doc.thumbnails.length > 0) {
-                const thumb = doc.thumbnails[doc.thumbnails.length - 1];
-                if (thumb && thumb.url) {
-                  imgUrl = thumb.url.split('=')[0] + '=w2560-h1440';
+            const newPhotos: PhotoItem[] = await Promise.all(
+              pickedDocs.map(async (doc: any, index: number) => {
+                // Attempt to fetch & compress Drive file via OAuth token so it renders on unauthenticated TVs
+                let imgUrl: string | null = null;
+                if (doc.id && accessToken) {
+                  imgUrl = await fetchAndCompressDriveImage(doc.id, accessToken);
                 }
-              }
 
-              if (!imgUrl && doc.id) {
-                imgUrl = `https://drive.google.com/thumbnail?id=${doc.id}&sz=w2560`;
-              }
+                // Fallback to Google Drive high-res URL if direct media fetch fails
+                if (!imgUrl) {
+                  imgUrl = doc.id ? `https://lh3.googleusercontent.com/d/${doc.id}=w2560-h1440` : '';
+                  if (doc.thumbnails && doc.thumbnails.length > 0) {
+                    const thumb = doc.thumbnails[doc.thumbnails.length - 1];
+                    if (thumb && thumb.url && !imgUrl) {
+                      imgUrl = thumb.url.split('=')[0] + '=w2560-h1440';
+                    }
+                  }
+                  if (!imgUrl && doc.id) {
+                    imgUrl = `https://drive.google.com/thumbnail?id=${doc.id}&sz=w2560`;
+                  }
+                }
 
-              return {
-                id: doc.id || `google-drive-${Date.now()}-${index}`,
-                url: imgUrl || doc.url,
-                title: doc.name || 'Google Drive Foto',
-                albumTitle: 'Google Drive Afbeeldingen',
-                createTime: doc.lastEditedUtc
-                  ? new Date(doc.lastEditedUtc).toISOString()
-                  : new Date().toISOString(),
-                source: 'google_photos' as const,
-              };
-            });
+                const cleanId = (doc.id || `google-drive-${Date.now()}-${index}`).replace(
+                  /[^a-zA-Z0-9_-]/g,
+                  '_'
+                );
+
+                return {
+                  id: cleanId,
+                  url: imgUrl || doc.url,
+                  title: doc.name || 'Google Drive Foto',
+                  albumTitle: 'Google Drive Afbeeldingen',
+                  createTime: doc.lastEditedUtc
+                    ? new Date(doc.lastEditedUtc).toISOString()
+                    : new Date().toISOString(),
+                  source: 'google_photos' as const,
+                };
+              })
+            );
 
             onPhotosPicked(newPhotos);
+          } else if (data.action === google.picker.Action.CANCEL) {
+            if (onError) onError(null);
           }
         });
 
@@ -155,3 +238,4 @@ export async function openGoogleDriveImagePicker({
 
 // Alias for backwards compatibility
 export const openGooglePhotoPicker = openGoogleDriveImagePicker;
+
