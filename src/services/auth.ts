@@ -2,6 +2,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
   getAuth,
   signInWithPopup,
+  signInWithCredential,
   GoogleAuthProvider,
   onAuthStateChanged,
   User,
@@ -10,7 +11,7 @@ import {
 import firebaseConfig from '../../firebase-applet-config.json';
 
 // Reuse app instance if already initialized
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
 export const SCOPES = [
@@ -21,8 +22,9 @@ export const SCOPES = [
   'https://www.googleapis.com/auth/userinfo.profile',
 ];
 
+// Dedicated Google Cloud OAuth 2.0 Client ID configured for Google Drive Picker & Google Calendar API
 export const OAUTH_CLIENT_ID =
-  firebaseConfig.oAuthClientId || '114756915443-t31akie1bsdp3i6tfmnjfdd8qq5g742e.apps.googleusercontent.com';
+  '114756915443-t31akie1bsdp3i6tfmnjfdd8qq5g742e.apps.googleusercontent.com';
 
 const provider = new GoogleAuthProvider();
 SCOPES.forEach((scope) => {
@@ -131,6 +133,17 @@ export const googleSignIn = async (): Promise<{ user: any; accessToken: string }
 
                 currentUserProfile = userObj;
                 localStorage.setItem('ambient_tv_user_profile', JSON.stringify(userObj));
+
+                // Sync Firebase Auth session silently when possible for Firestore access
+                if (!auth.currentUser) {
+                  try {
+                    const fbCred = GoogleAuthProvider.credential(null, accessToken);
+                    await signInWithCredential(auth, fbCred);
+                  } catch {
+                    // Handled on demand by ensureFirebaseAuth() if client IDs differ
+                  }
+                }
+
                 resolve({ user: userObj, accessToken });
               } catch (profileErr) {
                 // Fallback user object
@@ -200,6 +213,16 @@ export const setAccessToken = (token: string | null) => {
   } else {
     sessionStorage.removeItem('ambient_tv_oauth_token');
   }
+};
+
+export const ensureFirebaseAuth = async (): Promise<User> => {
+  if (auth.currentUser) {
+    return auth.currentUser;
+  }
+  const fbProvider = new GoogleAuthProvider();
+  fbProvider.setCustomParameters({ prompt: 'select_account' });
+  const result = await signInWithPopup(auth, fbProvider);
+  return result.user;
 };
 
 export const logout = async (): Promise<void> => {

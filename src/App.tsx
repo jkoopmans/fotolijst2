@@ -128,6 +128,17 @@ export default function App() {
     };
   }, []);
 
+  // Lock viewport scroll ONLY in TV mode so /admin scrolls freely on iPhone & mobile
+  useEffect(() => {
+    if (currentMode === 'tv') {
+      document.documentElement.classList.add('tv-mode-active');
+      document.body.classList.add('tv-mode-active');
+    } else {
+      document.documentElement.classList.remove('tv-mode-active');
+      document.body.classList.remove('tv-mode-active');
+    }
+  }, [currentMode]);
+
   // Update & persist settings helper
   const updateSettings = useCallback((updater: (prev: FrameSettings) => FrameSettings) => {
     setSettings((prev) => {
@@ -193,35 +204,43 @@ export default function App() {
           return null;
         })
         .then((data) => {
-          if (data) {
-            if (Array.isArray(data.photos) && data.photos.length > 0) {
-              setPhotos((curr) => {
-                if (curr.length === 0) {
-                  setCachedPhotos(data.photos);
-                  return data.photos;
-                }
-                return curr;
-              });
-            }
-            if (Array.isArray(data.events) && data.events.length > 0) {
-              setEvents((curr) => {
-                if (curr.length === 0) {
-                  setCachedEvents(data.events);
-                  return data.events;
-                }
-                return curr;
-              });
-            }
-            if (data.settings) {
-              updateSettings((prev) => ({
-                ...prev,
-                ...data.settings,
-                customPhotos:
-                  Array.isArray(data.photos) && data.photos.length > 0
-                    ? data.photos
-                    : prev.customPhotos,
-              }));
-            }
+          if (!data) return;
+          const incomingVersion = data.generatedAt || '';
+          const lastVersion = localStorage.getItem('ambient_tv_last_json_version') || '';
+          const isNewerBuild = Boolean(incomingVersion && incomingVersion !== lastVersion);
+
+          if (Array.isArray(data.photos) && data.photos.length > 0) {
+            setPhotos((curr) => {
+              if (curr.length === 0 || isNewerBuild) {
+                setCachedPhotos(data.photos);
+                return data.photos;
+              }
+              return curr;
+            });
+          }
+          if (Array.isArray(data.events) && data.events.length > 0) {
+            setEvents((curr) => {
+              if (curr.length === 0 || isNewerBuild) {
+                setCachedEvents(data.events);
+                return data.events;
+              }
+              return curr;
+            });
+          }
+          if (data.settings && (isNewerBuild || (Array.isArray(data.photos) && data.photos.length > 0))) {
+            updateSettings((prev) => ({
+              ...prev,
+              ...data.settings,
+              customPhotos:
+                Array.isArray(data.photos) && data.photos.length > 0
+                  ? data.photos
+                  : prev.customPhotos,
+            }));
+          }
+          if (incomingVersion) {
+            try {
+              localStorage.setItem('ambient_tv_last_json_version', incomingVersion);
+            } catch {}
           }
         })
         .catch(() => {});
@@ -440,6 +459,31 @@ export default function App() {
     });
   };
 
+  const handleRestoreBackup = useCallback(
+    (data: {
+      settings?: Partial<FrameSettings>;
+      photos?: PhotoItem[];
+      events?: CalendarEvent[];
+    }) => {
+      if (data.photos) {
+        setPhotos(data.photos);
+        setCachedPhotos(data.photos);
+      }
+      if (data.events) {
+        setEvents(data.events);
+        setCachedEvents(data.events);
+      }
+      if (data.settings) {
+        updateSettings((prev) => ({
+          ...prev,
+          ...data.settings,
+          customPhotos: data.photos ? data.photos : prev.customPhotos,
+        }));
+      }
+    },
+    [updateSettings]
+  );
+
   // Check if current user is authorized for admin
   const isAuthorizedAdmin = !!(
     user &&
@@ -488,6 +532,7 @@ export default function App() {
         saveNoticeVisible={saveNotice}
         photosError={photosError}
         accessToken={token}
+        onRestoreBackup={handleRestoreBackup}
       />
     );
   }

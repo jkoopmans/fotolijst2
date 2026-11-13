@@ -1,0 +1,156 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net: default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Global Helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidCollectionName(name) {
+      return name is string
+        && name.size() >= 2
+        && name.size() <= 64
+        && name.matches('^[a-zA-Z0-9_\\-]+$')
+        && !(name in ['admins', 'users', 'system', 'config', 'test']);
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAuthorizedAdminEmail() {
+      return isEmailVerified()
+        && request.auth.token.email in ['jasper@23g.nl', 'fietsventieltje@gmail.com'];
+    }
+
+    function isBackupOwner(data) {
+      return isEmailVerified()
+        && (data.ownerUid == request.auth.uid || isAuthorizedAdminEmail());
+    }
+
+    // 3. Entity Validation Blueprint: CloudBackup
+    function isValidCloudBackup(data, colName, docId) {
+      return data.keys().hasAll([
+          'ownerUid',
+          'ownerEmail',
+          'collectionName',
+          'backupId',
+          'settings',
+          'photos',
+          'events',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerUid',
+          'ownerEmail',
+          'collectionName',
+          'backupId',
+          'label',
+          'settings',
+          'photos',
+          'events',
+          'photoCount',
+          'eventCount',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.ownerUid is string
+        && data.ownerUid.size() >= 1
+        && data.ownerUid.size() <= 128
+        && data.ownerUid == request.auth.uid
+        && data.ownerEmail is string
+        && data.ownerEmail.size() >= 3
+        && data.ownerEmail.size() <= 254
+        && data.ownerEmail == request.auth.token.email
+        && data.collectionName is string
+        && data.collectionName.size() >= 2
+        && data.collectionName.size() <= 64
+        && data.collectionName == colName
+        && data.backupId is string
+        && data.backupId.size() >= 1
+        && data.backupId.size() <= 128
+        && data.backupId == docId
+        && (!('label' in data) || (data.label is string && data.label.size() <= 120))
+        && data.settings is map
+        && data.photos is list
+        && data.photos.size() <= 100
+        && (data.photos.size() == 0 || data.photos[0] is map)
+        && data.events is list
+        && data.events.size() <= 100
+        && (data.events.size() == 0 || data.events[0] is map)
+        && (!('photoCount' in data) || data.photoCount is int || data.photoCount is float)
+        && (!('eventCount' in data) || data.eventCount is int || data.eventCount is float)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // 4. User-defined backup collections (including default 'tv_backups')
+    match /{collectionName}/{backupId} {
+      allow get: if isSignedIn()
+        && isEmailVerified()
+        && isValidCollectionName(collectionName)
+        && isValidId(backupId)
+        && isBackupOwner(existing());
+
+      allow list: if isSignedIn()
+        && isEmailVerified()
+        && isValidCollectionName(collectionName)
+        && isBackupOwner(existing());
+
+      allow create: if isSignedIn()
+        && isEmailVerified()
+        && isValidCollectionName(collectionName)
+        && isValidId(backupId)
+        && isValidCloudBackup(incoming(), collectionName, backupId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isSignedIn()
+        && isEmailVerified()
+        && isValidCollectionName(collectionName)
+        && isValidId(backupId)
+        && isBackupOwner(existing())
+        && isValidCloudBackup(incoming(), collectionName, backupId)
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().ownerEmail == existing().ownerEmail
+        && incoming().collectionName == existing().collectionName
+        && incoming().backupId == existing().backupId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'label',
+          'settings',
+          'photos',
+          'events',
+          'photoCount',
+          'eventCount',
+          'updatedAt'
+        ]);
+
+      allow delete: if isSignedIn()
+        && isEmailVerified()
+        && isValidCollectionName(collectionName)
+        && isValidId(backupId)
+        && isBackupOwner(existing());
+    }
+  }
+}

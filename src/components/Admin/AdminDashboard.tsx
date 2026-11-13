@@ -49,6 +49,11 @@ interface AdminDashboardProps {
   saveNoticeVisible?: boolean;
   photosError?: string | null;
   accessToken?: string | null;
+  onRestoreBackup?: (data: {
+    settings?: Partial<FrameSettings>;
+    photos?: PhotoItem[];
+    events?: CalendarEvent[];
+  }) => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -75,13 +80,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   saveNoticeVisible = false,
   photosError,
   accessToken,
+  onRestoreBackup,
 }) => {
   const [activeTab, setActiveTab] = useState<'photos' | 'calendar' | 'display' | 'tv'>('photos');
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-slate-100 font-sans selection:bg-blue-600 selection:text-white">
+    <div className="min-h-screen w-full overflow-x-hidden bg-neutral-950 text-slate-100 font-sans selection:bg-blue-600 selection:text-white">
       {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-30 bg-neutral-950/80 backdrop-blur-xl border-b border-neutral-800">
+      <header className="sticky top-0 z-30 bg-neutral-950/90 backdrop-blur-xl border-b border-neutral-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           {/* Logo & Brand */}
           <div className="flex items-center gap-3">
@@ -208,7 +214,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </header>
 
       {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-24 space-y-6 sm:space-y-8">
         {/* Mobile Quick TV Launcher Button */}
         <div className="sm:hidden">
           <button
@@ -271,6 +277,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               photos={photos}
               events={events}
               settings={settings}
+              onRestoreBackup={onRestoreBackup}
             />
             <LiveTVPreview
               photos={photos}

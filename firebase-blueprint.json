@@ -1,0 +1,91 @@
+{
+  "entities": {
+    "CloudBackup": {
+      "title": "CloudBackup",
+      "description": "A user-saved snapshot of TV frame settings, selected photos, and cached calendar events stored in a user-defined Firestore collection.",
+      "type": "object",
+      "properties": {
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Firebase Auth UID of the owner who created this backup."
+        },
+        "ownerEmail": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254,
+          "description": "Verified email address of the backup owner."
+        },
+        "collectionName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "The user-defined Firestore collection name."
+        },
+        "backupId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Identifier of the backup document."
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Human-readable label for the backup."
+        },
+        "settings": {
+          "type": "object",
+          "description": "FrameSettings object containing display, slideshow, and overlay preferences."
+        },
+        "photos": {
+          "type": "array",
+          "description": "List of selected PhotoItem objects (up to 100 items)."
+        },
+        "events": {
+          "type": "array",
+          "description": "List of synced CalendarEvent objects (up to 100 items)."
+        },
+        "photoCount": {
+          "type": "number",
+          "description": "Number of photos in the backup."
+        },
+        "eventCount": {
+          "type": "number",
+          "description": "Number of calendar events in the backup."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the backup was first created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the backup was last updated."
+        }
+      },
+      "required": [
+        "ownerUid",
+        "ownerEmail",
+        "collectionName",
+        "backupId",
+        "settings",
+        "photos",
+        "events",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/tv_backups/{backupId}": {
+      "schema": {
+        "$ref": "#/entities/CloudBackup"
+      },
+      "description": "Default collection for storing TV fotolijst cloud backups; users may also target custom collection names with the same CloudBackup schema."
+    }
+  }
+}

@@ -21,12 +21,12 @@ export const AdminLoginScreen: React.FC<AdminLoginScreenProps> = ({
   onGoToTV,
 }) => {
   return (
-    <div className="min-h-screen bg-neutral-950 text-slate-100 flex flex-col justify-center items-center p-4 sm:p-6 font-sans relative overflow-hidden">
+    <div className="min-h-screen w-full bg-neutral-950 text-slate-100 flex flex-col justify-center items-center p-4 sm:p-6 font-sans relative overflow-x-hidden overflow-y-auto">
       {/* Background ambient lighting */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/3 w-80 h-80 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="relative z-10 w-full max-w-md bg-neutral-900/90 backdrop-blur-2xl border border-neutral-800 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-6">
+      <div className="relative z-10 my-auto w-full max-w-md bg-neutral-900/90 backdrop-blur-2xl border border-neutral-800 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-6">
         {/* App Icon */}
         <div className="w-16 h-16 mx-auto rounded-3xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-xl shadow-blue-500/25">
           <Tv className="w-8 h-8" />
